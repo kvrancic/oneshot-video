@@ -12,7 +12,7 @@ Project panel) that rebuilds the rendered edit frame for frame on the camera ori
   A1  the voice: the microphone, cleaned once over the whole recording and placed in
       camera time (voice-camtime.wav), cut exactly like the picture
   A2  the room microphone, only where the audience speaks
-  V3, A3...  extra layers from plan "premiere": {"layers": [{"path", "at" (edit s), "kind":
+  V3, A3...  extra layers from plan "premiere": {"layers": [{"path", "at" (edit s or "#word±s"), "kind":
       "video"|"audio", "name"?, "hidesCaptions"?, "enabled"?}]}: a styled intro over the cold
       open, music beds (each audio layer on its own track pair, stereo as left/right; alternatives
       come in disabled with "enabled": false, to audition by enabling one). A layer with
@@ -407,7 +407,7 @@ def main():
                     os.link(src, dst)  # same disk: no second copy
                 except OSError:
                     shutil.copy2(src, dst)
-            f0 = fr(float(x.get("at", 0)))
+            f0 = fr(tl.ref(x.get("at", 0)))
             nf = files.dur(dst)
             n += 1
             clipitem(v3, files, n, dst, f0, f0 + nf, 0, name=x.get("name", src.stem), fit=(100.0, 0.0, 0.0))
@@ -425,7 +425,7 @@ def main():
                 os.link(src, dst)  # same disk: no second copy
             except OSError:
                 shutil.copy2(src, dst)
-        f0 = fr(float(x.get("at", 0)))
+        f0 = fr(tl.ref(x.get("at", 0)))
         nf = files.dur(dst)
         stereo = (files.get(dst)["channels"] or 1) >= 2
         for ch in ((1, 2) if stereo else (1,)):
@@ -441,6 +441,9 @@ def main():
         sub(mk, "in", fr(tl.ref(c["at"])))
         sub(mk, "out", -1)
 
+    # A layer may run past the last shot (applause over black): the sequence runs to its end.
+    ends = [int(c.findtext("end")) for c in root.iter("clipitem")]
+    seq.find("duration").text = str(max([total] + ends))
     ET.indent(root)
     xml_path = out / f"{plan['id']}.xml"
     xml_path.write_text('<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE xmeml>\n' + ET.tostring(root, encoding="unicode") + "\n")
