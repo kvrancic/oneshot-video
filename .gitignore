@@ -1,0 +1,11 @@
+.venv/
+models/*.bin
+models/*.onnx
+work/
+renderer/node_modules/
+renderer/public/jobs/
+renderer/public/lab/
+renderer/out/
+*.log
+.DS_Store
+bin/
