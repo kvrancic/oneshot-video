@@ -12,6 +12,10 @@ Project panel) that rebuilds the rendered edit frame for frame on the camera ori
   A1  the voice: the microphone, cleaned once over the whole recording and placed in
       camera time (voice-camtime.wav), cut exactly like the picture
   A2  the room microphone, only where the audience speaks
+  V3, A3/A4  extra layers from plan "premiere": {"layers": [{"path", "at" (edit s), "kind":
+      "video"|"audio", "name"?, "hidesCaptions"?}]}: a styled intro over the cold open, a music
+      bed (stereo files as a left/right pair). A layer with hidesCaptions drops the .srt cues it
+      covers (its own text is burned in).
   markers  one per chapter
 
 Next to it: the subtitles as .srt (File > Import, then drag onto the timeline for a
@@ -19,7 +23,7 @@ captions track), the camera grade as a .cube LUT (Lumetri > Basic Correction > I
 LUT, or on an adjustment layer) and a README. The timeline positions are the render's
 own frame grid, so the .srt, the inserts and the markers line up with it unchanged.
 """
-import argparse, json, re, shutil, subprocess, sys
+import argparse, json, os, re, shutil, subprocess, sys
 from pathlib import Path
 from urllib.parse import quote
 from xml.etree import ElementTree as ET
@@ -159,15 +163,23 @@ def rate(parent):
 
 
 class Files:
-    """<file> elements: the full definition on first use, a reference afterwards."""
+    """<file> elements: the full definition on first use, a reference afterwards. A file that
+    is not on disk any more is written from what ingest measured (project.json), so Premiere
+    opens the timeline with it offline and Link Media finds it wherever it went."""
 
-    def __init__(self):
-        self.ids, self.info = {}, {}
+    def __init__(self, known=None):
+        self.ids, self.info, self.known, self.missing = {}, {}, known or {}, []
 
     def get(self, path):
         path = str(Path(path).resolve())
         if path not in self.info:
-            self.info[path] = probe(path)
+            if Path(path).exists():
+                self.info[path] = probe(path)
+            elif path in self.known:
+                self.info[path] = self.known[path]
+                self.missing.append(path)
+            else:
+                raise FileNotFoundError(path)
         return self.info[path]
 
     def add(self, parent, path):
@@ -224,7 +236,7 @@ def motion(parent, scale, horiz, vert):
     sub(v, "vert", f"{vert:.6f}")
 
 
-def clipitem(track, files, n, path, start, end, src_in, name=None, audio=False, fit=None):
+def clipitem(track, files, n, path, start, end, src_in, name=None, audio=False, fit=None, channel=1):
     ci = sub(track, "clipitem", id=f"clipitem-{n}")
     sub(ci, "name", name or Path(path).name)
     sub(ci, "duration", files.dur(path))
@@ -238,7 +250,7 @@ def clipitem(track, files, n, path, start, end, src_in, name=None, audio=False, 
     if audio:
         st = sub(ci, "sourcetrack")
         sub(st, "mediatype", "audio")
-        sub(st, "trackindex", 1)
+        sub(st, "trackindex", channel)
     elif fit is not None:
         motion(ci, *fit)
     return ci
@@ -276,13 +288,15 @@ def main():
 
     # ---- sound on the camera's clock, cleaned once
     close = cams["close"]
-    pic_dur = probe(close["path"])["duration"]
+    known = {str(Path(x["path"]).resolve()): {"duration": x["duration"], "w": x.get("width"), "h": x.get("height"),
+                                              "channels": (x.get("audio") or {}).get("channels")} for x in proj["sources"]}
+    pic_dur = known.get(str(Path(close["path"]).resolve()), {}).get("duration") or probe(close["path"])["duration"]
     voice = media / "voice-camtime.wav"
     if not voice.exists():
         voice_camtime(proj["audio"], pic_dur, voice, [w for w in W if w.get("src") != "room"])
         print(f"voice -> {voice}")
     room = media / "room-camtime.wav"
-    if not room.exists():
+    if not room.exists() and Path(close["path"]).exists():
         loudnorm(close["path"], room, CHAINS["rnn"])
         print(f"room -> {room}")
 
@@ -303,7 +317,7 @@ def main():
     rate(sc)
     for k, v in (("width", W_SEQ), ("height", H_SEQ), ("anamorphic", "FALSE"), ("pixelaspectratio", "square"), ("fielddominance", "none")):
         sub(sc, k, v)
-    files = Files()
+    files = Files(known)
     n = 0
 
     # V1: shots
@@ -376,6 +390,48 @@ def main():
         clipitem(a2, files, n, room, f0, f1, src_in, name="audience", audio=True)
         last_end = f1
 
+    # V3 and A3/A4: extra layers (a styled intro, a music bed)
+    layers = plan.get("premiere", {}).get("layers", [])
+    hidden = []
+    vl = [x for x in layers if x.get("kind", "video") == "video"]
+    al = [x for x in layers if x.get("kind") == "audio"]
+    if vl:
+        v3 = sub(video, "track")
+        for x in vl:
+            src = Path(x["path"]).expanduser()
+            dst = media / src.name
+            if not dst.exists() or dst.stat().st_size != src.stat().st_size:
+                dst.unlink(missing_ok=True)
+                try:
+                    os.link(src, dst)  # same disk: no second copy
+                except OSError:
+                    shutil.copy2(src, dst)
+            f0 = fr(float(x.get("at", 0)))
+            nf = files.dur(dst)
+            n += 1
+            clipitem(v3, files, n, dst, f0, f0 + nf, 0, name=x.get("name", src.stem), fit=(100.0, 0.0, 0.0))
+            if x.get("hidesCaptions"):
+                hidden.append((f0 / FPS, (f0 + nf) / FPS))
+    if al:
+        pair = [sub(audio, "track"), sub(audio, "track")]
+        for ch, tr in enumerate(pair, 1):
+            sub(tr, "outputchannelindex", ch)
+        for x in al:
+            src = Path(x["path"]).expanduser()
+            dst = media / src.name
+            if not dst.exists() or dst.stat().st_size != src.stat().st_size:
+                dst.unlink(missing_ok=True)
+                try:
+                    os.link(src, dst)  # same disk: no second copy
+                except OSError:
+                    shutil.copy2(src, dst)
+            f0 = fr(float(x.get("at", 0)))
+            nf = files.dur(dst)
+            stereo = (files.get(dst)["channels"] or 1) >= 2
+            for ch in ((1, 2) if stereo else (1,)):
+                n += 1
+                clipitem(pair[ch - 1], files, n, dst, f0, f0 + nf, 0, name=x.get("name", src.stem), audio=True, channel=ch)
+
     # Chapter markers
     for c in plan.get("chapters", []):
         mk = sub(seq, "marker")
@@ -391,7 +447,14 @@ def main():
     # Subtitles, grade LUT, readme
     srt = d / "out" / f"{plan['id']}.srt"
     if srt.exists():
-        shutil.copy2(srt, out / srt.name)
+        cues = [c for c in srt.read_text().strip().split("\n\n") if c.strip()]
+
+        def mid(c):
+            a, b = re.findall(r"(\d+):(\d+):(\d+),(\d+)", c.split("\n")[1])
+            sec = lambda h, m, s_, ms: int(h) * 3600 + int(m) * 60 + int(s_) + int(ms) / 1000  # noqa: E731
+            return (sec(*a) + sec(*b)) / 2
+        kept = [c for c in cues if not any(a <= mid(c) < b for a, b in hidden)]
+        (out / srt.name).write_text("\n\n".join(f"{k}\n" + "\n".join(c.split("\n")[1:]) for k, c in enumerate(kept, 1)) + "\n")
     grade = json.loads((d / "grade.json").read_text()) if (d / "grade.json").exists() else {}
     luts, done = [], set()
     for cid, vf in grade.items():
@@ -405,6 +468,11 @@ def main():
     sharpen = any("unsharp" in str(v) for v in grade.values())
     from collections import Counter
     names = {"title": "opening title", "chapter": "chapter title", "broll": "graphic", "note": "note"}
+    extra = ""
+    if vl:
+        extra += "\n- V3: " + "; ".join(x.get("name", Path(x["path"]).stem) for x in vl) + (" (its text is burned in, so the .srt leaves those lines out)" if hidden else "") + "."
+    if al:
+        extra += "\n- A3/A4: " + "; ".join(x.get("name", Path(x["path"]).stem) for x in al) + " (a stereo pair; adjust or swap the clip, the voice stays on A1)."
     kinds = ", ".join(f"{c} {names.get(k, k)}{'s' if c > 1 else ''}" for k, c in Counter(kind for _, kind in placed).items()) or "none"
     (out / "README.md").write_text(f"""# {plan.get('title') or plan['id']}: the edit, for Premiere Pro
 
@@ -424,12 +492,14 @@ Tracks
 - V2: the graphics ({kinds}), rendered full frame with the picture under them. Turn V2 off to see the raw
   shots. If you retime a shot under a graphic, re-render the graphic in cutroom or delete it.
 - A1: the lavalier, cleaned once over the whole lecture (`media/voice-camtime.wav`), cut exactly like the picture.
-- A2: the room camera's microphone, only where students speak.
+- A2: the room camera's microphone, only where students speak.{extra}
 - Markers: one per chapter (they are also the YouTube chapters in `chapters.txt` next to the render).
 
 Every cut sits on a pause or a word boundary; ripple-delete, trim or extend any clip and the audio follows
 because A1 is cut on the same frames as V1.
 """)
+    for mp in files.missing:
+        print(f"   OFFLINE: {mp} is not on disk; Premiere will ask for it (Link Media)")
     print(f"-> {xml_path}\n   V1 {v1n} shots, V2 {len(placed)} inserts, A1 {sum(1 for _ in a1)} voice clips, A2 {sum(1 for _ in a2)} room clips, "
           f"{len(plan.get('chapters', []))} markers; {total / FPS / 60:.1f} min" + (f"; LUT {', '.join(luts)}" if luts else ""))
 
