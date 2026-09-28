@@ -58,6 +58,8 @@ $CR/.venv/bin/python $CR/scripts/longrender.py DIR/edit.json                    
 
 Look at the preview (contact sheet via `qa.py`-style frame grabs, or open it) before the full render. Every render reuses what did not change (shots, plates, mattes and inserts are cached by content), so a fix after the full render costs only the changed parts plus the final encode. Output in `DIR/out/`: `<id>-full.mp4`, `<id>.srt`, `chapters.txt` (paste into the YouTube description), plus the cut list from `structure.md`.
 
+Always hand the edit back for Premiere Pro too: `$CR/.venv/bin/python $CR/scripts/premiere.py DIR/edit.json` writes `DIR/out/premiere/` (an FCP7 XML of every shot, cut and graphic on the original media, the cleaned voice on the camera clock, the room mic, chapter markers, the .srt, a .cube of the grade and a README). Check it before handing over: no gaps or overlaps on V1 and A1, no clip past the end of its media.
+
 ## 6. Check the full render
 
 ```bash
