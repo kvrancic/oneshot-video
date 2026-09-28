@@ -46,7 +46,7 @@ $CR/.venv/bin/python $CR/scripts/grade.py DIR/edit.json --preview   # look at DI
 ```
 
 - Fill each B-roll entry's `props` in `edit.json` (graphics: `BigNumber`, `Timeline`, `Tokens`, `NextToken`, `Steps`; props in `references/longform.md`) with beats as word references (`"#5120"`), so every element lands on the word that names it. Only facts the speaker says or the deck shows.
-- The director: audience speaking → the room camera; a slide appears → the screen recording for a sentence or two; otherwise speaker angles cycle (medium, wide, tight, room) every 6 to 14 s on sentence ends; cuts inside a shot alternate medium and a 1.12x punch so filler cuts read as camera changes. Override any range with `"angles": [{"from": "#i", "to": "#j", "angle": "screen"}]`.
+- The director: audience speaking → the room camera; a title behind the speaker → the speaker (never a slide; a slide that changed under the title follows it); a slide appears → the screen recording for a sentence or two; the speaker walks out of the picture camera's frame (a whiteboard, the far side of the room) → the room camera; otherwise speaker angles cycle (mostly wide, some medium, tight rarely) every 6 to 14 s on sentence ends; cuts inside a shot alternate framings so filler cuts read as camera changes. Override any range with `"angles": [{"from": "#i", "to": "#j", "angle": "screen"}]`.
 - Grade: white balance on neutral surfaces per camera, then one look (`natural`, `warm`, `punchy`). Read the before/after stills.
 
 ## 5. Preview, then render
@@ -56,7 +56,15 @@ $CR/.venv/bin/python $CR/scripts/longrender.py DIR/edit.json --preview 0-150    
 $CR/.venv/bin/python $CR/scripts/longrender.py DIR/edit.json                    # the whole talk (background; 30 to 60 min)
 ```
 
-Look at the preview (contact sheet via `qa.py`-style frame grabs, or open it) before the full render. The full render reuses shots and sound from the preview. Output in `DIR/out/`: `<id>-full.mp4`, `<id>.srt`, `chapters.txt` (paste into the YouTube description), plus the cut list from `structure.md`.
+Look at the preview (contact sheet via `qa.py`-style frame grabs, or open it) before the full render. Every render reuses what did not change (shots, plates, mattes and inserts are cached by content), so a fix after the full render costs only the changed parts plus the final encode. Output in `DIR/out/`: `<id>-full.mp4`, `<id>.srt`, `chapters.txt` (paste into the YouTube description), plus the cut list from `structure.md`.
+
+## 6. Check the full render
+
+```bash
+$CR/.venv/bin/python $CR/scripts/longqa.py DIR/edit.json
+```
+
+Loudness and true peak, black frames, frozen camera shots (a camera aimed at an empty spot), shots where the picture camera lost the speaker, overlapping inserts, titles over slides, and `DIR/out/inserts-sheet.jpg` with every title and graphic. Read the sheet. Fix, re-render (only the changes are redone) and check again before handing over.
 
 ## Rules
 

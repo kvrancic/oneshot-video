@@ -50,6 +50,25 @@ def refine_offset(src, plan):
         print(f"  audio offset refined at {mid:.0f}s: {off:+.3f}s (confidence {conf:.2f})")
 
 
+def chain_delay(dry, wet, sr=48000, max_ms=250):
+    """Samples by which the cleaning chain delays the voice. afftdn holds back about 25 ms and
+    the RNN chain about 35 ms, and ffmpeg does not compensate; measured on the speech itself
+    by cross-correlating 30 s of dry and cleaned signal."""
+    import numpy as np
+    import soundfile as sf
+
+    x, _ = sf.read(dry, dtype="float32", always_2d=True)
+    y, _ = sf.read(wet, dtype="float32", always_2d=True)
+    x, y = x.mean(axis=1), y.mean(axis=1)
+    total = min(len(x), len(y))
+    n = min(total, 30 * sr)
+    a = max(0, min(total // 3, total - n))
+    x, y = x[a:a + n], y[a:a + n]
+    size = 1 << int(np.ceil(np.log2(2 * n)))
+    cc = np.fft.irfft(np.fft.rfft(y, size) * np.conj(np.fft.rfft(x, size)), size)
+    return int(np.argmax(cc[:int(sr * max_ms / 1000)]))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--plan", required=True)
@@ -84,6 +103,14 @@ def main():
     chain = CHAINS[clean] + ",loudnorm=I=-16:TP=-1.5:LRA=11"
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(joined), "-af", chain, "-ar", "48000", "-ac", "1", args.out], check=True)
+    lag = chain_delay(joined, args.out)
+    if lag:
+        import numpy as np
+        import soundfile as sf
+
+        y, sr = sf.read(args.out, dtype="float32")
+        sf.write(args.out, np.concatenate([y[lag:], np.zeros(lag, np.float32)]), sr, subtype="PCM_16")
+        print(f"  cleaning delay {lag / 48:.1f} ms trimmed")
     print(f"voice -> {args.out} ({sum(s['b'] - s['a'] for s in plan['segments']):.1f}s, {len(parts)} segments, "
           f"source {Path(src.path).name}{'' if src.stream is None else f' stream {src.stream}'}, clean={clean})")
 

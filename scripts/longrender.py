@@ -44,7 +44,9 @@ def shift_times(o, delta):
         return o
     out = {}
     for k, v in o.items():
-        if k in TIME_KEYS and isinstance(v, (int, float)):
+        if k == "kenburns":  # {from: [x, y, scale], to: [...]} is a framing, not times
+            out[k] = v
+        elif k in TIME_KEYS and isinstance(v, (int, float)):
             out[k] = round(v - delta, 3)
         elif k in TIME_KEYS and isinstance(v, list) and all(isinstance(x, (int, float)) for x in v):
             out[k] = [round(x - delta, 3) for x in v]
@@ -136,7 +138,9 @@ def cues_from(tokens, max_chars=84, max_line=44, max_dur=6.5):
         if cur:
             text = " ".join(x["text"] for x in cur + [t])
             gap = t["start"] - cur[-1]["end"]
-            if (len(text) > max_chars or t["end"] - cur[0]["start"] > max_dur or gap > 1.2
+            # A sentence's last word may run a little long rather than open the next cue alone.
+            fin = bool(re.search(r"[.!?][\"')\]]?$", t["text"]))
+            if (len(text) > max_chars + (12 if fin else 0) or t["end"] - cur[0]["start"] > max_dur + (1.5 if fin else 0) or gap > 1.2
                     or re.search(r"[.!?][\"')\]]?$", cur[-1]["text"]) and len(" ".join(x["text"] for x in cur)) > 18):
                 cues.append(cur)
                 cur = []
@@ -257,6 +261,8 @@ def main():
     tokens = json.loads(tok_path.read_text())
     cues = cues_from(tokens)
     screen_spans = [(s["e0"], s["e1"]) for s in shots if s["cam"] == "screen"]
+    # Inserts over a light picture (a title card) ask for the boxed subtitle too.
+    screen_spans += [(tl.ref(i["from"]), tl.ref(i["to"])) for i in plan.get("inserts", []) if i.get("captionBox")]
     ins_spans = []
     lines = []
     srt = []
@@ -447,9 +453,9 @@ def main():
     run(["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", ";".join(fc), "-map", "[vout]", "-map", f"{ai}:a",
          "-map_metadata", str(ai + 1), "-map_chapters", str(ai + 1), "-c:v", "h264_videotoolbox", "-b:v", args.bitrate,
          "-profile:v", "high", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "256k", "-shortest", "-movflags", "+faststart", final])
-    yt = "".join(f"{int(t // 3600) and f'{int(t // 3600)}:' or ''}{int(t % 3600 // 60):02d}:{int(t % 60):02d} {ttl}\n"
-                 for t, ttl in chapters)
-    (out_dir / "chapters.txt").write_text(yt.replace("00:00", "0:00", 1) if yt.startswith("00:00") else yt)
+    yt = "".join((f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{int(t % 60):02d}" if t >= 3600 else f"{int(t // 60)}:{int(t % 60):02d}")
+                 + f" {ttl}\n" for t, ttl in chapters)
+    (out_dir / "chapters.txt").write_text(yt)
     print(f"-> {final} ({(p1 - p0) / 60:.1f} min, total {time.time() - t_start:.0f}s)")
 
 
