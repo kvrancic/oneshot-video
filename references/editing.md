@@ -10,7 +10,7 @@
 - **Speed:** 1.0 for lectures. Podcasts on X can take 1.05 to 1.1 with pitch preserved; never on a lecture where credibility matters.
 
 - **Filler inside a sentence: hide it, do not cut it.** Cutting every "like" leaves 0.6 s segments and a jump cut a second. Put the word in `captions.drop` (hidden, still heard) and keep the take continuous; cut from the audio only fillers that sit at a clause boundary or a stumble.
-- **Minimum segment:** about 1.5 s. Shorter runs read as a glitch; merge them back with `keepPauses` or a longer range.
+- **Minimum segment:** about 1.2 to 1.5 s. Shorter runs read as a glitch. `"minRun": 1.2` in a plan rejoins pieces that were split off only by a pause or filler; for the rest, drop an orphaned connective with the stumble beside it, or restore a tiny self-correction instead of cutting around it.
 
 ## Camera (reframe.py)
 

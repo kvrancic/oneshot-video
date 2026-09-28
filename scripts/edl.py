@@ -71,9 +71,43 @@ def noise_floor(src, lo, hi):
     return float(np.percentile(db, 15))
 
 
-def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_audio=True):
-    """Word-range parts -> [{a, b, w}] source cut points (see module docstring)."""
+FILLER_WORDS = {"um", "uh", "uhm", "erm", "er", "ah", "hmm", "mm", "mhm"}
+
+
+def merge_short(runs, W, min_run, max_gap=1.6):
+    """Smoothness: a run shorter than min_run that was split off only by a pause or a
+    filler (no cut word between) rejoins its neighbour, keeping the natural pause. A lone
+    'But' followed by a cut sounds broken; the same 'But' and a breath sounds human."""
+    if min_run <= 0:
+        return runs
+    changed = True
+    while changed:
+        changed = False
+        for k in range(len(runs)):
+            r0, r1 = runs[k]
+            if W[r1]["e"] - W[r0]["s"] >= min_run:
+                continue
+            nxt = k + 1 < len(runs) and runs[k + 1][0] == r1 + 1 and W[runs[k + 1][0]]["s"] - W[r1]["e"] <= max_gap
+            prv = k > 0 and runs[k - 1][1] == r0 - 1 and W[r0]["s"] - W[runs[k - 1][1]]["e"] <= max_gap
+            if nxt:
+                runs[k] = [r0, runs[k + 1][1]]
+                del runs[k + 1]
+            elif prv:
+                runs[k - 1] = [runs[k - 1][0], r1]
+                del runs[k]
+            else:
+                continue
+            changed = True
+            break
+    return runs
+
+
+def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_audio=True, fillers=(), min_run=0.0):
+    """Word-range parts -> [{a, b, w}] source cut points (see module docstring).
+    `fillers` are (start, end) times of fillers the word list does not contain (Parakeet
+    hears "uh" where Whisper writes nothing); a gap holding one is always cut."""
     cuts = set(cuts)
+    fill = sorted((float(f["s"]), float(f["e"])) for f in fillers)
     segs = []
     for part in edit:
         i, j = part["words"]
@@ -84,7 +118,10 @@ def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_au
         floor = None
         for k in range(i, j):
             gap = W[k + 1]["s"] - W[k]["e"]
+            has_filler = any(W[k]["e"] - 0.05 <= fs and fe <= W[k + 1]["s"] + 0.05 for fs, fe in fill) if fill else False
             if k + 1 in cuts:
+                runs.append([k + 1, k + 1])
+            elif has_filler and not keep:
                 runs.append([k + 1, k + 1])
             elif not keep and gap > maxp and k not in cuts:
                 if check_audio:
@@ -111,6 +148,7 @@ def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_au
                     cur[1] = k
             if cur:
                 split.append(cur)
+        split = merge_short(split, W, part.get("minRun", min_run))
         for r0, r1 in split:
             prev_e = W[r0 - 1]["e"] if r0 > 0 else W[r0]["s"] - 1.0
             next_s = W[r1 + 1]["s"] if r1 + 1 < len(W) else W[r1]["e"] + 1.0
@@ -135,6 +173,7 @@ def main():
     ap.add_argument("--max-pause", type=float, default=0.7)
     ap.add_argument("--lead", type=float, default=0.10)
     ap.add_argument("--tail", type=float, default=0.22)
+    ap.add_argument("--cut-fillers", action="store_true", help="also cut um/uh (full edits; plan \"cutFillers\": true)")
     args = ap.parse_args()
 
     plan_path = Path(args.plan)
@@ -153,7 +192,13 @@ def main():
     def text(i, j):
         return " ".join(fixes.get(k, W[k]["w"]) for k in range(i, j + 1) if k not in drop and fixes.get(k, W[k]["w"]))
 
-    segs = resolve(plan["edit"], W, src, plan.get("cut", []), args.max_pause, args.lead, args.tail)
+    wdata = json.loads(words_path.read_text())
+    cut_fillers = args.cut_fillers or plan.get("cutFillers", False)
+    cuts = set(plan.get("cut", []))
+    if cut_fillers:
+        cuts |= {w["i"] for w in W if re.sub(r"[^a-z]", "", w["w"].lower()) in FILLER_WORDS}
+    segs = resolve(plan["edit"], W, src, cuts, plan.get("maxPause", args.max_pause), args.lead, args.tail,
+                   fillers=wdata.get("fillers", []) if cut_fillers else (), min_run=plan.get("minRun", 0.0))
     plan["segments"] = segs
     plan_path.write_text(json.dumps(plan, indent=2, ensure_ascii=False))
 

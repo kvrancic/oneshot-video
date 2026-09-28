@@ -5,6 +5,8 @@ description: Turn a long video (lecture, talk, podcast, interview, livestream) i
 
 # cutroom
 
+(For a full edit of a whole talk, with multicam, section cuts and chapters, use the sibling skill `cutroom-edit`, `edit/SKILL.md`. Same engine.)
+
 Long video in, finished clips out. Everything runs on this Mac: Whisper large-v3-turbo and Parakeet for words and timings, YuNet for faces, ffmpeg and OpenCV for the camera, Remotion for captions and graphics. The only network calls are optional (Pexels B-roll, Wikimedia portraits).
 
 The standard to beat is Opus Clip. Testers throw away 13 to 40 percent of its clips, for the same three reasons every time: a cut mid-thought, a clip that needs context it does not carry and a camera that loses the speaker. Effects are not where tools fail. So the order of care in this skill is: **choosing the moment, cutting it cleanly, framing the person, then decoration.**

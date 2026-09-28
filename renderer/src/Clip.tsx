@@ -5,6 +5,7 @@ import { Captions, CaptionZone } from "./captions/Captions";
 import type { Token } from "./captions/layout";
 import { StanceBoard } from "./graphics/StanceBoard";
 import { SwapQuote } from "./graphics/SwapQuote";
+import { BigNumber, NextToken, Steps, Timeline, Tokens } from "./graphics/Explainers";
 import { ChapterCard, EndCard, Footnote, HookBar, KeywordChip, NameTag, NumberCallout, ProgressBar, QuoteCard, Takeover } from "./overlays/Cards";
 import { Grain } from "./overlays/Grain";
 import { TextBehind } from "./overlays/TextBehind";
@@ -12,11 +13,11 @@ import { DIMS, EASE, Format, PALETTES, PaletteName, RADIUS, SHADOW, isVertical }
 import { useFontsReady } from "./useFonts";
 
 type Visual =
-  | { kind: "graphic"; graphic: "StanceBoard" | "SwapQuote"; props: Record<string, unknown>; panelH?: number }
+  | { kind: "graphic"; graphic: "StanceBoard" | "SwapQuote" | "BigNumber" | "Timeline" | "Tokens" | "NextToken" | "Steps"; props: Record<string, unknown>; panelH?: number }
   | { kind: "image" | "slide"; src: string; fit?: "cover" | "contain"; kenburns?: { from: [number, number, number]; to: [number, number, number] }; highlight?: { x: number; y: number; w: number; h: number; at: number }; panelH?: number }
   | { kind: "video"; src: string; trimBefore?: number; fit?: "cover" | "contain"; panelH?: number };
 
-type Span = { from: number; to: number; mode: "stage" | "visual" | "speaker"; visual?: Visual };
+type Span = { from: number; to: number; mode: "stage" | "visual" | "speaker"; visual?: Visual; cut?: boolean }; // cut: enter without the fade
 type Overlay = { type: string; from: number; to: number; props?: Record<string, unknown> };
 
 export type ClipProps = {
@@ -65,6 +66,14 @@ const VisualView: React.FC<{ v: Visual; w: number; h: number; palette: PaletteNa
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return <StanceBoard {...(v.props as any)} w={w} h={h} palette={pal} t0={t0} vertical={isVertical(format)} />;
     }
+    const gx = { w, h, palette: pal, t0, vertical: isVertical(format) };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const gp = v.props as any;
+    if (v.graphic === "BigNumber") return <BigNumber {...gp} {...gx} />;
+    if (v.graphic === "Timeline") return <Timeline {...gp} {...gx} />;
+    if (v.graphic === "Tokens") return <Tokens {...gp} {...gx} />;
+    if (v.graphic === "NextToken") return <NextToken {...gp} {...gx} />;
+    if (v.graphic === "Steps") return <Steps {...gp} {...gx} />;
     if (v.graphic === "SwapQuote") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return <SwapQuote {...(v.props as any)} w={w} h={h} palette={pal} t0={t0} vertical={isVertical(format)} />;
@@ -137,7 +146,7 @@ export const Clip: React.FC<ClipProps> = (props) => {
     const fIn = frame - Math.round(span.from * fps);
     const fOut = Math.round(span.to * fps) - frame;
     const nextSpan = props.layout.find((s) => Math.abs(s.from - span.to) < 0.05);
-    const contIn = prev && Math.abs(prev.to - span.from) < 0.05 && prev.mode === span.mode;
+    const contIn = span.cut || (prev && Math.abs(prev.to - span.from) < 0.05 && prev.mode === span.mode);
     const contOut = nextSpan && nextSpan.mode === span.mode;
     stageK = Math.min(
       contIn ? 1 : interpolate(fIn, [0, IN_F], [0, 1], { extrapolateRight: "clamp", easing: EASE.move }),

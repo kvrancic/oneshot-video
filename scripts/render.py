@@ -233,9 +233,9 @@ def resolve_obj(o, tl, clip_dir, job_dir):
         return o
     out = {}
     for k, v in o.items():
-        if k in ("from", "to", "at", "until", "land") and isinstance(v, list):
+        if k in ("from", "to", "at", "until", "land", "subAt", "idsAt", "pickAt") and isinstance(v, list):
             out[k] = [round(tl.ref(x), 3) for x in v]
-        elif k in ("from", "to", "at", "until", "land") and (isinstance(v, (int, float)) or (isinstance(v, str) and (v.startswith("#") or v.startswith("end") or re.match(r"^[\d.]+$", v)))):
+        elif k in ("from", "to", "at", "until", "land", "subAt", "idsAt", "pickAt") and (isinstance(v, (int, float)) or (isinstance(v, str) and (v.startswith("#") or v.startswith("end") or re.match(r"^[\d.]+$", v)))):
             out[k] = round(tl.ref(v), 3)
         elif k in ("src", "image", "photo") and isinstance(v, str) and not v.startswith("http"):
             out[k] = stage(find_path(v, clip_dir, clip_dir.parent.parent), job_dir)

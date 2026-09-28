@@ -9,3 +9,4 @@ renderer/out/
 *.log
 .DS_Store
 bin/
+__pycache__/

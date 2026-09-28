@@ -17,7 +17,7 @@ export const TextBehind: React.FC<{
     fontWeight: serif ? 400 : 800, letterSpacing: serif ? "-0.01em" : "-0.05em", validateFontIsLoaded: false }).fontSize;
   const s = size ?? Math.min(fitted, v ? 380 : 420);
   // Centre the word on the face so the head and shoulders pass in front of it.
-  const top = y ?? (faceY !== undefined ? faceY - s * 1.02 : v ? 330 : 120);
+  const top = y ?? (faceY !== undefined ? Math.max(v ? 120 : 48, faceY - s * 1.02) : v ? 330 : 120);
   const rise = interpolate(f, [0, 27], [0, 1], { extrapolateRight: "clamp", easing: EASE.power3 });
   const out = interpolate(f, [dur - 12, dur], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE.exit });
   const dim = interpolate(f, [0, 10], [0, 0.16], { extrapolateRight: "clamp" }) * out;

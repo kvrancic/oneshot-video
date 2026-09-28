@@ -22,10 +22,16 @@ In Claude Code:
 
 Claude asks a few multiple-choice questions (formats, energy, extras), transcribes, proposes clips, asks which to make, plans each one, shows stills, renders, checks and packages everything into `exports/<date>/` with a review page. Say "auto" to skip the questions.
 
+## Full edits
+
+`cutroom-edit` (in `edit/`, linked as `~/.claude/skills/cutroom-edit`) edits a whole talk: it syncs cameras, microphone and screen recording, cuts fillers and restarts, proposes section cuts for approval, directs a multicam edit (speaker, room, screen, 4K punch-ins), gates the room mic in for audience questions, grades the cameras, adds a title and chapter titles behind the speaker, motion-graphics B-roll and subtitles and exports YouTube chapters.
+
+> Use cutroom-edit on ~/Movies/talk/ (two cameras, a mic and a screen recording). Keep it tight, cut the demos.
+
 ## Layout
 
 - `SKILL.md`: the workflow Claude follows.
-- `scripts/`: ingest, transcribe, track, candidates, edl, reframe, audio, assets, sfx, render, qa, package.
+- `scripts/`: ingest, transcribe, track, candidates, edl, reframe, audio, assets, sfx, render, qa, package; for full edits signals, longplan, multicam, grade, longrender.
 - `renderer/`: the Remotion project (captions, overlays, graphics).
 - `references/`: selection doctrine, plan schema, editing, captions, graphics, sound, platforms, review checklist, research summary.
 - `docs/research/`: the four full research reports.
