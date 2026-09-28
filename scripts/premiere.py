@@ -12,10 +12,11 @@ Project panel) that rebuilds the rendered edit frame for frame on the camera ori
   A1  the voice: the microphone, cleaned once over the whole recording and placed in
       camera time (voice-camtime.wav), cut exactly like the picture
   A2  the room microphone, only where the audience speaks
-  V3, A3/A4  extra layers from plan "premiere": {"layers": [{"path", "at" (edit s), "kind":
-      "video"|"audio", "name"?, "hidesCaptions"?}]}: a styled intro over the cold open, a music
-      bed (stereo files as a left/right pair). A layer with hidesCaptions drops the .srt cues it
-      covers (its own text is burned in).
+  V3, A3...  extra layers from plan "premiere": {"layers": [{"path", "at" (edit s), "kind":
+      "video"|"audio", "name"?, "hidesCaptions"?, "enabled"?}]}: a styled intro over the cold
+      open, music beds (each audio layer on its own track pair, stereo as left/right; alternatives
+      come in disabled with "enabled": false, to audition by enabling one). A layer with
+      hidesCaptions drops the .srt cues it covers (its own text is burned in).
   markers  one per chapter
 
 Next to it: the subtitles as .srt (File > Import, then drag onto the timeline for a
@@ -236,14 +237,14 @@ def motion(parent, scale, horiz, vert):
     sub(v, "vert", f"{vert:.6f}")
 
 
-def clipitem(track, files, n, path, start, end, src_in, name=None, audio=False, fit=None, channel=1):
+def clipitem(track, files, n, path, start, end, src_in, name=None, audio=False, fit=None, channel=1, enabled=True):
     ci = sub(track, "clipitem", id=f"clipitem-{n}")
     sub(ci, "name", name or Path(path).name)
     sub(ci, "duration", files.dur(path))
     rate(ci)
     sub(ci, "start", start)
     sub(ci, "end", end)
-    sub(ci, "enabled", "TRUE")
+    sub(ci, "enabled", "TRUE" if enabled else "FALSE")
     sub(ci, "in", src_in)
     sub(ci, "out", src_in + end - start)
     files.add(ci, path)
@@ -412,25 +413,25 @@ def main():
             clipitem(v3, files, n, dst, f0, f0 + nf, 0, name=x.get("name", src.stem), fit=(100.0, 0.0, 0.0))
             if x.get("hidesCaptions"):
                 hidden.append((f0 / FPS, (f0 + nf) / FPS))
-    if al:
+    for x in al:  # each music bed on its own track pair, so alternatives sit side by side
         pair = [sub(audio, "track"), sub(audio, "track")]
         for ch, tr in enumerate(pair, 1):
             sub(tr, "outputchannelindex", ch)
-        for x in al:
-            src = Path(x["path"]).expanduser()
-            dst = media / src.name
-            if not dst.exists() or dst.stat().st_size != src.stat().st_size:
-                dst.unlink(missing_ok=True)
-                try:
-                    os.link(src, dst)  # same disk: no second copy
-                except OSError:
-                    shutil.copy2(src, dst)
-            f0 = fr(float(x.get("at", 0)))
-            nf = files.dur(dst)
-            stereo = (files.get(dst)["channels"] or 1) >= 2
-            for ch in ((1, 2) if stereo else (1,)):
-                n += 1
-                clipitem(pair[ch - 1], files, n, dst, f0, f0 + nf, 0, name=x.get("name", src.stem), audio=True, channel=ch)
+        src = Path(x["path"]).expanduser()
+        dst = media / src.name
+        if not dst.exists() or dst.stat().st_size != src.stat().st_size:
+            dst.unlink(missing_ok=True)
+            try:
+                os.link(src, dst)  # same disk: no second copy
+            except OSError:
+                shutil.copy2(src, dst)
+        f0 = fr(float(x.get("at", 0)))
+        nf = files.dur(dst)
+        stereo = (files.get(dst)["channels"] or 1) >= 2
+        for ch in ((1, 2) if stereo else (1,)):
+            n += 1
+            clipitem(pair[ch - 1], files, n, dst, f0, f0 + nf, 0, name=x.get("name", src.stem), audio=True, channel=ch,
+                     enabled=x.get("enabled", True))
 
     # Chapter markers
     for c in plan.get("chapters", []):
@@ -471,8 +472,11 @@ def main():
     extra = ""
     if vl:
         extra += "\n- V3: " + "; ".join(x.get("name", Path(x["path"]).stem) for x in vl) + (" (its text is burned in, so the .srt leaves those lines out)" if hidden else "") + "."
+    for k, x in enumerate(al):
+        extra += (f"\n- A{3 + 2 * k}/A{4 + 2 * k}: {x.get('name', Path(x['path']).stem)}"
+                  + (" (disabled: right-click the clips > Enable to audition it, and disable the others)" if not x.get("enabled", True) else ""))
     if al:
-        extra += "\n- A3/A4: " + "; ".join(x.get("name", Path(x["path"]).stem) for x in al) + " (a stereo pair; adjust or swap the clip, the voice stays on A1)."
+        extra += "\n  Each music bed is a stereo pair; adjust its level or swap it, the voice stays on A1."
     kinds = ", ".join(f"{c} {names.get(k, k)}{'s' if c > 1 else ''}" for k, c in Counter(kind for _, kind in placed).items()) or "none"
     (out / "README.md").write_text(f"""# {plan.get('title') or plan['id']}: the edit, for Premiere Pro
 
