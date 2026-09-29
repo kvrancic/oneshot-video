@@ -6,6 +6,7 @@ import type { Token } from "./captions/layout";
 import { StanceBoard } from "./graphics/StanceBoard";
 import { SwapQuote } from "./graphics/SwapQuote";
 import { BigNumber, NextToken, Steps, Timeline, Tokens } from "./graphics/Explainers";
+import { BlackBox } from "./graphics/BlackBox";
 import { ChapterCard, EndCard, Footnote, HookBar, KeywordChip, NameTag, NumberCallout, ProgressBar, QuoteCard, Takeover } from "./overlays/Cards";
 import { Grain } from "./overlays/Grain";
 import { TextBehind } from "./overlays/TextBehind";
@@ -13,7 +14,7 @@ import { DIMS, EASE, Format, PALETTES, PaletteName, RADIUS, SHADOW, isVertical }
 import { useFontsReady } from "./useFonts";
 
 type Visual =
-  | { kind: "graphic"; graphic: "StanceBoard" | "SwapQuote" | "BigNumber" | "Timeline" | "Tokens" | "NextToken" | "Steps"; props: Record<string, unknown>; panelH?: number }
+  | { kind: "graphic"; graphic: "StanceBoard" | "SwapQuote" | "BigNumber" | "Timeline" | "Tokens" | "NextToken" | "Steps" | "BlackBox"; props: Record<string, unknown>; panelH?: number }
   | { kind: "image" | "slide"; src: string; fit?: "cover" | "contain"; kenburns?: { from: [number, number, number]; to: [number, number, number] }; highlight?: { x: number; y: number; w: number; h: number; at: number }; panelH?: number }
   | { kind: "video"; src: string; trimBefore?: number; fit?: "cover" | "contain"; panelH?: number };
 
@@ -74,6 +75,7 @@ const VisualView: React.FC<{ v: Visual; w: number; h: number; palette: PaletteNa
     if (v.graphic === "Tokens") return <Tokens {...gp} {...gx} />;
     if (v.graphic === "NextToken") return <NextToken {...gp} {...gx} />;
     if (v.graphic === "Steps") return <Steps {...gp} {...gx} />;
+    if (v.graphic === "BlackBox") return <BlackBox {...gp} {...gx} />;
     if (v.graphic === "SwapQuote") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return <SwapQuote {...(v.props as any)} w={w} h={h} palette={pal} t0={t0} vertical={isVertical(format)} />;
