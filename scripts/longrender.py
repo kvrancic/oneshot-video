@@ -141,6 +141,7 @@ def cues_from(tokens, max_chars=84, max_line=44, max_dur=6.5):
             # A sentence's last word may run a little long rather than open the next cue alone.
             fin = bool(re.search(r"[.!?][\"')\]]?$", t["text"]))
             if (len(text) > max_chars + (12 if fin else 0) or t["end"] - cur[0]["start"] > max_dur + (1.5 if fin else 0) or gap > 1.2
+                    or t.get("speaker") != cur[-1].get("speaker")  # a student and the speaker never share a subtitle
                     or re.search(r"[.!?][\"')\]]?$", cur[-1]["text"]) and len(" ".join(x["text"] for x in cur)) > 18):
                 cues.append(cur)
                 cur = []
@@ -148,6 +149,7 @@ def cues_from(tokens, max_chars=84, max_line=44, max_dur=6.5):
     if cur:
         cues.append(cur)
     out = []
+    new_sentence = True
     for c in cues:
         words = [x["text"] for x in c]
         text = " ".join(words)
@@ -159,7 +161,9 @@ def cues_from(tokens, max_chars=84, max_line=44, max_dur=6.5):
                 if score < best:
                     best, bi = score, k
             text = " ".join(words[:bi]) + "\\N" + " ".join(words[bi:])
-        text = text[0].upper() + text[1:] if text else text
+        if new_sentence and text:  # a subtitle that carries on a sentence keeps its lower case
+            text = text[0].upper() + text[1:]
+        new_sentence = bool(re.search(r"[.!?][\"')\]]?$", text))
         out.append({"start": c[0]["start"] - 0.08, "end": c[-1]["end"] + 0.35, "text": text})
     for x, y in zip(out, out[1:]):
         x["end"] = min(x["end"], y["start"] - 0.02)

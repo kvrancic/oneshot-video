@@ -7,7 +7,9 @@ transcript ([#index] in transcript.txt); this script turns them into cuts:
   head: just before the first word, at the quietest point of the gap before it
   tail: after the last word has rung out, at the quietest point of the gap after it
   pauses inside a range longer than --max-pause are cut out (a jump cut the camera
-  hides with its alternating cut zoom); "keepPauses": true on a part keeps them.
+  hides with its alternating cut zoom); "keepPauses": true on a part keeps them, and
+  plan "holds": {"word index": seconds} lets the pause after that word run longer (a
+  question that needs a beat, a line that should land, a slide to read).
 
 Writes plan["segments"] = [{a, b, w: [first, last]}] and prints the edit as text so
 every head and tail can be read before anything renders.
@@ -102,11 +104,12 @@ def merge_short(runs, W, min_run, max_gap=1.6):
     return runs
 
 
-def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_audio=True, fillers=(), min_run=0.0):
+def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_audio=True, fillers=(), min_run=0.0, holds=None):
     """Word-range parts -> [{a, b, w}] source cut points (see module docstring).
     `fillers` are (start, end) times of fillers the word list does not contain (Parakeet
     hears "uh" where Whisper writes nothing); a gap holding one is always cut."""
     cuts = set(cuts)
+    holds = holds or {}
     fill = sorted((float(f["s"]), float(f["e"])) for f in fillers)
     segs = []
     for part in edit:
@@ -123,7 +126,7 @@ def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_au
                 runs.append([k + 1, k + 1])
             elif has_filler and not keep:
                 runs.append([k + 1, k + 1])
-            elif not keep and gap > maxp and k not in cuts:
+            elif not keep and gap > holds.get(k, maxp) and k not in cuts:
                 if check_audio:
                     if floor is None:
                         floor = noise_floor(src, W[i]["s"], W[j]["e"])
@@ -197,8 +200,9 @@ def main():
     cuts = set(plan.get("cut", []))
     if cut_fillers:
         cuts |= {w["i"] for w in W if re.sub(r"[^a-z]", "", w["w"].lower()) in FILLER_WORDS}
-    segs = resolve(plan["edit"], W, src, cuts, plan.get("maxPause", args.max_pause), args.lead, args.tail,
-                   fillers=wdata.get("fillers", []) if cut_fillers else (), min_run=plan.get("minRun", 0.0))
+    segs = resolve(plan["edit"], W, src, cuts, plan.get("maxPause", args.max_pause), plan.get("lead", args.lead), plan.get("tail", args.tail),
+                   fillers=wdata.get("fillers", []) if cut_fillers else (), min_run=plan.get("minRun", 0.0),
+                   holds={int(k): float(v) for k, v in plan.get("holds", {}).items()})
     plan["segments"] = segs
     plan_path.write_text(json.dumps(plan, indent=2, ensure_ascii=False))
 
