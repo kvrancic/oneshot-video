@@ -51,6 +51,7 @@ A 100 minute talk: transcription about 10 min, tracking 15 to 25 min, story pass
 | `bed` | `{file, at, gainDb}` a pre-composed music bed, or a list of them (not looped, not ducked: it carries its own dynamics) |
 | `screenHold` | seconds the deck stays up after a slide change before the speaker cycle may return (default 6) |
 | `captions.top` | `[[from, to], ...]` subtitles at the top of the frame over slides with text along the bottom |
+| `captions.oneLine` | `[[from, to], ...]` one-line subtitles where a slide has text both top and bottom |
 | `audio.chain` | an ffmpeg filter chain for the voice instead of the measured light/strong/rnn choice |
 | `angles` with `#i@last` | an angle for one copy of a line the cold open plays twice (the body's copy) |
 
