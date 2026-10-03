@@ -180,7 +180,8 @@ def main():
             shots.append({"u0": i, "u1": j, "angle": want[i]})
             i = j + 1
             continue
-        target = rnd.uniform(6, 14)
+        lo_hi = plan.get("shotLength", [6, 14])
+        target = rnd.uniform(*lo_hi)
         j = i
         while j + 1 < len(units) and want[j + 1] is None and units[j]["e1"] - units[i]["e0"] < target:
             j += 1
@@ -202,7 +203,7 @@ def main():
     for s in shots:
         dur = units[s["u1"]]["e1"] - units[s["u0"]]["e0"]
         titled = any(in_title(u) for u in units[s["u0"]:s["u1"] + 1])
-        if merged and dur < 2.5 and s["angle"] not in ("wide",) and not titled and not asked(s):
+        if merged and dur < plan.get("minShot", 2.5) and s["angle"] not in ("wide",) and not titled and not asked(s):
             merged[-1]["u1"] = s["u1"]
         else:
             merged.append(s)
@@ -255,7 +256,7 @@ def main():
         for n, p in enumerate(parts):
             angle = s["angle"]
             # A jump cut inside a shot becomes a framing change of the same size class.
-            if n % 2 == 1:
+            if n % 2 == 1 and not plan.get("noPunch"):  # "noPunch": a cut inside a shot keeps its framing (a far camera hides it)
                 alt = {"close.medium": "close.punch", "close.wide": "close.widepunch", "wide": "close.wide",
                        "close.tight": "close.medium", "close.stage": "close.stagepunch"}.get(angle, angle)
                 if not (alt.startswith("close.") and present(p[0]["a"], p[-1]["b"]) < 0.5):
