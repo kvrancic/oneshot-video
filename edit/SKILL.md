@@ -76,4 +76,5 @@ Loudness and true peak, black frames, frozen camera shots (a camera aimed at an 
 - Audience questions stay when they are good and audible; their audio comes from the room mic, gated in only while they speak.
 - Private people are not named on screen; a host's self-introduction is proposed as a cut.
 - Subtitles stay on for the whole video; on screen-recording shots they sit on a soft box so slide footers stay readable.
+- Loud breathing on a PA or a close lavalier: run `breaths.py` before planning and use its output as the audio source (references/longform.md, Breaths). A far, static camera: set `framing`/`fixedCrops`, verify the tracker is on the speaker, and use `clips` for crisp custom graphics.
 - One spent moment per chapter at most (a title behind the speaker, a B-roll graphic). The talk is the content.

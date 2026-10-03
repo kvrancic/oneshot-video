@@ -100,7 +100,10 @@ def main():
         snr = snr_db(x, sr)
         clean = "light" if snr >= 24 else "strong" if snr >= 14 else "rnn"
         print(f"  voice SNR {snr:.1f} dB -> clean={clean}")
-    chain = CHAINS[clean] + ",loudnorm=I=-16:TP=-1.5:LRA=11"
+    custom = plan.get("audio", {}).get("chain")   # a hand-made chain for an unusual room (plan "audio": {"chain": ...})
+    chain = (custom or CHAINS[clean]) + ",loudnorm=I=-16:TP=-1.5:LRA=11"
+    if custom:
+        print("  voice chain: custom")
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(joined), "-af", chain, "-ar", "48000", "-ac", "1", args.out], check=True)
     lag = chain_delay(joined, args.out)

@@ -101,6 +101,8 @@ def edit_tokens(plan, tl, W):
                 continue
             a = float(tl.off[k] + max(W[i]["s"], s["a"]) - s["a"])
             b = float(tl.off[k] + min(W[i]["e"], s["b"]) - s["a"])
+            if b <= a and W[i]["e"] <= W[i]["s"] and s["a"] <= W[i]["s"] <= s["b"]:
+                b = min(a + 0.12, float(tl.off[k] + s["b"] - s["a"]))  # a zero-length word from the aligner is still a word
             if b > a:
                 toks.append({"text": text, "start": round(a, 3), "end": round(b, 3), "src": i})
     return toks
@@ -109,7 +111,7 @@ def edit_tokens(plan, tl, W):
 _FONT = {}
 
 
-def plate(text, size=46, margin_v=64, pad_x=26, pad_y=14, radius=12):
+def plate(text, size=46, margin_v=64, pad_x=26, pad_y=14, radius=12, top=False):
     """One rounded translucent box behind a whole subtitle (an ASS vector drawing), so two
     lines never stack two semi-transparent boxes into a darker band."""
     from PIL import ImageFont
@@ -129,17 +131,22 @@ def plate(text, size=46, margin_v=64, pad_x=26, pad_y=14, radius=12):
     path = (f"m {x0 + r:.0f} {y0:.0f} l {x1 - r:.0f} {y0:.0f} b {x1:.0f} {y0:.0f} {x1:.0f} {y0:.0f} {x1:.0f} {y0 + r:.0f} "
             f"l {x1:.0f} {y1 - r:.0f} b {x1:.0f} {y1:.0f} {x1:.0f} {y1:.0f} {x1 - r:.0f} {y1:.0f} l {x0 + r:.0f} {y1:.0f} "
             f"b {x0:.0f} {y1:.0f} {x0:.0f} {y1:.0f} {x0:.0f} {y1 - r:.0f} l {x0:.0f} {y0 + r:.0f} b {x0:.0f} {y0:.0f} {x0:.0f} {y0:.0f} {x0 + r:.0f} {y0:.0f}")
-    return f"{{\\an7\\pos(960,{1080 - margin_v + pad_y:.0f})\\p1}}{path}"
+    y = margin_v - pad_y + h if top else 1080 - margin_v + pad_y
+    return f"{{\\an7\\pos(960,{y:.0f})\\p1}}{path}"
 
 
 def cues_from(tokens, max_chars=84, max_line=44, max_dur=6.5):
+    tokens = [{**t, "end": min(t["end"], t["start"] + 1.5)} for t in tokens]
     cues, cur = [], []
-    for t in tokens:
+    for n, t in enumerate(tokens):
         if cur:
             text = " ".join(x["text"] for x in cur + [t])
             gap = t["start"] - cur[-1]["end"]
             # A sentence's last word may run a little long rather than open the next cue alone.
             fin = bool(re.search(r"[.!?][\"')\]]?$", t["text"]))
+            # the sentence ends within three words: keep them together rather than strand them
+            if not fin:
+                fin = any(re.search(r"[.!?][\"')\]]?$", x["text"]) for x in tokens[n:n + 3])
             if (len(text) > max_chars + (12 if fin else 0) or t["end"] - cur[0]["start"] > max_dur + (1.5 if fin else 0) or gap > 1.2
                     or t.get("speaker") != cur[-1].get("speaker")  # a student and the speaker never share a subtitle
                     or re.search(r"[.!?][\"')\]]?$", cur[-1]["text"]) and len(" ".join(x["text"] for x in cur)) > 18):
@@ -182,6 +189,9 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Sub,Inter SemiBold,48,&H00F4F1EA,&H000000FF,&H73000000,&H8C000000,0,0,0,0,100,100,-0.3,0,1,2.2,2,2,140,140,64,1
 Style: Box,Inter SemiBold,46,&H00F4F1EA,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,-0.3,0,1,0,0,2,140,140,64,1
 Style: Plate,Inter SemiBold,46,&H4D0B0B0B,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,2,0,0,0,1
+Style: SubTop,Inter SemiBold,48,&H00F4F1EA,&H000000FF,&H73000000,&H8C000000,0,0,0,0,100,100,-0.3,0,1,2.2,2,8,140,140,64,1
+Style: BoxTop,Inter SemiBold,46,&H00F4F1EA,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,-0.3,0,1,0,0,8,140,140,64,1
+Style: PlateTop,Inter SemiBold,46,&H4D0B0B0B,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,8,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -241,8 +251,32 @@ def main():
     mixed = d / "mix.wav"
     if not mixed.exists() or args.audio_only:
         pre = d / ".mix.pre.wav"
-        run(["ffmpeg", "-v", "error", "-y", "-i", voice, "-i", room, "-filter_complex",
-             f"[1:a]volume='min(1,{gate})':eval=frame[r];[0:a][r]amix=inputs=2:normalize=0:duration=first[m]",
+        # Effects (plan "sfx": [{at: ref, file: kit name or path, gain: dB}]) and a pre-composed
+        # bed (plan "bed": {file, at: ref, gainDb}) join the voice before loudness.
+        extra_in, extra_fc, labels = [], [], ["[0:a]", "[r]"]
+        n_in = 2
+        for e in plan.get("sfx", []):
+            f = Path(str(e["file"])).expanduser()
+            if not f.exists():
+                f = ROOT / "assets" / "sfx" / f"{e['file']}.wav"
+            if not f.exists():
+                print(f"  ! missing sfx {e['file']}")
+                continue
+            ms = int(max(tl.ref(e["at"]), 0) * 1000)
+            extra_in += ["-i", str(f)]
+            extra_fc.append(f"[{n_in}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume={e.get('gain', -20)}dB,adelay={ms}:all=1[x{n_in}]")
+            labels.append(f"[x{n_in}]"); n_in += 1
+        beds = plan.get("bed") or []
+        for bed in (beds if isinstance(beds, list) else [beds]):
+            if not bed.get("file"):
+                continue
+            ms = int(max(tl.ref(bed.get("at", 0)), 0) * 1000)
+            extra_in += ["-i", str(Path(bed["file"]).expanduser())]
+            extra_fc.append(f"[{n_in}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume={bed.get('gainDb', 0)}dB,adelay={ms}:all=1[x{n_in}]")
+            labels.append(f"[x{n_in}]"); n_in += 1
+        run(["ffmpeg", "-v", "error", "-y", "-i", voice, "-i", room, *extra_in, "-filter_complex",
+             ";".join([f"[1:a]volume='min(1,{gate})':eval=frame[r]"] + extra_fc +
+                      [f"{''.join(labels)}amix=inputs={len(labels)}:normalize=0:duration=first[m]"]),
              "-map", "[m]", "-ar", "48000", "-ac", "2", pre])
         pr = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(pre), "-af",
                              "alimiter=limit=0.89:level=false,loudnorm=I=-14:TP=-1:LRA=11:print_format=json", "-f", "null", "-"],
@@ -253,7 +287,7 @@ def main():
              f"measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true",
              "-ar", "48000", mixed])
         pre.unlink(missing_ok=True)
-        print(f"sound: lavalier + room for {len(turns)} audience turns, -14 LUFS ({time.time() - t_start:.0f}s)")
+        print(f"sound: lavalier + room for {len(turns)} audience turns, {len(labels) - 2} effects/bed, -14 LUFS ({time.time() - t_start:.0f}s)")
 
     # ---- subtitles
     tokens = edit_tokens(plan, tl, W)
@@ -268,14 +302,21 @@ def main():
     # Inserts over a light picture (a title card) ask for the boxed subtitle too.
     screen_spans += [(tl.ref(i["from"]), tl.ref(i["to"])) for i in plan.get("inserts", []) if i.get("captionBox")]
     ins_spans = []
+    # A full-frame graphic that already shows the words (a title card) takes the captions off.
+    hide_spans = [(tl.ref(i["from"]), tl.ref(i["to"])) for i in plan.get("inserts", []) + plan.get("clips", [])
+                  if i.get("captionsOff")]
+    # Slides with text along the bottom (a list, a label, a result) take the captions at the top.
+    top_spans = [(tl.ref(a), tl.ref(b)) for a, b in plan.get("captions", {}).get("top", [])]
     lines = []
     srt = []
     for n, c in enumerate(cues, 1):
         mid = (c["start"] + c["end"]) / 2
         style = "Box" if any(a <= mid < b for a, b in screen_spans) else "Sub"
-        if c["end"] > p0 and c["start"] < p1:
-            if style == "Box":
-                lines.append(f"Dialogue: 0,{ass_ts(c['start'] - p0)},{ass_ts(c['end'] - p0)},Plate,,0,0,0,,{plate(c['text'])}")
+        if any(a <= mid < b for a, b in top_spans):
+            style = "BoxTop" if style == "Box" else "SubTop"
+        if c["end"] > p0 and c["start"] < p1 and not any(a <= mid < b for a, b in hide_spans):
+            if style in ("Box", "BoxTop"):
+                lines.append(f"Dialogue: 0,{ass_ts(c['start'] - p0)},{ass_ts(c['end'] - p0)},{'PlateTop' if style == 'BoxTop' else 'Plate'},,0,0,0,,{plate(c['text'], top=style == 'BoxTop')}")
             lines.append(f"Dialogue: 1,{ass_ts(c['start'] - p0)},{ass_ts(c['end'] - p0)},{style},,0,0,0,,{c['text']}")
         srt.append(f"{n}\n{srt_ts(c['start'])} --> {srt_ts(c['end'])}\n{c['text'].replace(chr(92) + 'N', chr(10))}\n")
     ass = d / f"captions-{tag}.ass"
@@ -435,13 +476,34 @@ def main():
     inputs = ["-i", str(picture)]
     fc = []
     last = "0:v"
+
+    def movie(path):
+        # A movie= source is pulled only when the overlay needs it. Opened as an input instead,
+        # ffmpeg reads the clip ahead, the queue overflows and the clip's first frames are dropped
+        # (a title starting 30 s in lost its first 0.3 s).
+        return "movie='" + str(path).replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:") + "'"
+
     for k, (vid, a, b) in enumerate(overlays, 1):
-        inputs += ["-itsoffset", f"{a:.3f}", "-i", str(vid)]
-        fc.append(f"[{last}][{k}:v]overlay=enable='between(t,{a:.3f},{b - 1 / FPS:.3f})':eof_action=pass[v{k}]")
+        fc.append(f"{movie(vid)},setpts=PTS-STARTPTS+{a:.3f}/TB[iv{k}];"
+                  f"[{last}][iv{k}]overlay=enable='between(t,{a:.3f},{b - 1 / FPS:.3f})':eof_action=pass[v{k}]")
         last = f"v{k}"
+    # Pre-rendered clips (plan "clips": [{src, from, to, captionsOff?}]) go straight over the picture,
+    # untouched by Remotion: pixel art stays crisp; a .mov with alpha (png/prores 4444) keys itself.
+    k = len(overlays)
+    for c in plan.get("clips", []):
+        a, b = tl.ref(c["from"]), tl.ref(c["to"])
+        if b <= p0 or a >= p1:
+            continue
+        k += 1
+        # a clip that starts before the preview window starts part-way through
+        skip = max(0.0, p0 - a)
+        trim = f",trim=start={skip:.3f}" if skip else ""
+        fc.append(f"{movie(Path(c['src']).expanduser())}{trim},setpts=PTS-STARTPTS+{max(a - p0, 0):.3f}/TB[cm{k}];"
+                  f"[{last}][cm{k}]overlay=enable='between(t,{max(a - p0, 0):.3f},{b - p0 - 1 / FPS:.3f})':eof_action=pass[c{k}]")
+        last = f"c{k}"
     fc.append(f"[{last}]ass={ass}:fontsdir={FONTS}[vout]")
     inputs += ["-ss", f"{p0:.3f}", "-t", f"{p1 - p0:.3f}", "-i", str(mixed)]
-    ai = len(overlays) + 1
+    ai = 1
     chapters = []
     for c in plan.get("chapters", []):
         t = tl.ref(c["at"])

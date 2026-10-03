@@ -37,3 +37,33 @@ Keep each graphic on screen 6 to 20 s, while the speaker explains exactly that; 
 ## Timing
 
 A 100 minute talk: transcription about 10 min, tracking 15 to 25 min, story pass by an agent about 15 min, shots about 1 to 2x realtime of the final length with four parallel hardware encodes, inserts a few minutes, final pass (subtitles, sound) about 10 min.
+
+## Plan keys for awkward rooms (added for the a conference edit)
+
+| key | what it does |
+|---|---|
+| `edit[].tail` | seconds the part rings out after its last word (applause, a laugh), past the 0.6 s cap |
+| `fixedCrops` | `{"close.stage": [x, y, w, h]}` on the source: a framing chosen by eye for a static camera |
+| `framing` | zoom per angle (`{"close.medium": 2.8}`) when face-sized crops do not fit (a far camera) |
+| `clips` | `[{src, from, to, captionsOff?}]` pre-rendered video laid straight over the picture by ffmpeg, before the subtitles; a `.mov` with alpha (png or prores 4444) keys itself. For pixel art and custom title sequences that Remotion would soften |
+| `captionsOff` | on an insert or a clip: no subtitles under it (a title card that already shows the words) |
+| `sfx` | `[{at, file, gain}]` in full edits too: kit names (`whoosh-soft`) or paths, at word references |
+| `bed` | `{file, at, gainDb}` a pre-composed music bed, or a list of them (not looped, not ducked: it carries its own dynamics) |
+| `screenHold` | seconds the deck stays up after a slide change before the speaker cycle may return (default 6) |
+| `captions.top` | `[[from, to], ...]` subtitles at the top of the frame over slides with text along the bottom |
+| `audio.chain` | an ffmpeg filter chain for the voice instead of the measured light/strong/rnn choice |
+| `angles` with `#i@last` | an angle for one copy of a line the cold open plays twice (the body's copy) |
+
+One camera only: wherever the director wants the room (audience, speaker out of frame) it takes the picture
+camera's whole frame. An angle asked for in `angles` is never merged away for being shorter than 2.5 s.
+
+A far camera with a small face: the face tracker may lock onto someone in the audience (a still, well-lit face
+wins). Check `track-close.json` against a frame before directing; a lone speaker on a stage tracks better by
+background difference (median frame of the stage band, the moving figure is the blob).
+
+## Breaths
+
+`breaths.py SOURCE --words DIR/transcript.words.json --out DIR/voice-debreath.wav --report DIR/breaths.json`
+lowers every gap between words by 14 dB (from 120 ms after a word to 40 ms before the next), which takes
+inhales, lip noise and PA hiss out while words keep their room. Gaps that hold their own sound (laughter,
+an answer, applause) are left alone and listed as reactions. Point `project.json` `audio.path` at the result.

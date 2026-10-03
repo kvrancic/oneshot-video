@@ -83,6 +83,7 @@ def main():
     # Title windows (a word behind the speaker) in edit time: they need the speaker, never a slide.
     from render import Timeline
     tl = Timeline(segs, W)
+    tl_e = tl
     titles = [(tl.ref(ins["from"]), tl.ref(ins["to"])) for ins in plan.get("inserts", [])
               if any(o.get("type") == "TextBehind" for o in ins.get("overlays", []))]
     # A long sentence under a title splits where the title ends, so a slide can follow it.
@@ -111,12 +112,21 @@ def main():
     busy = sig.get("screen", {}).get("busy", [])
     idx = lambda r: int(str(r).lstrip("#").split("@")[0].split(".")[0].split("+")[0])  # noqa: E731
     chapters = {idx(c["at"]) for c in plan.get("chapters", [])}
-    overrides = []
+    overrides = []        # (source from, source to, angle): every copy of those words in the edit
+    overrides_e = []      # (edit from, edit to, angle): one copy, when the reference names it (#i@2, #i@last)
     for o in plan.get("angles", []):
-        overrides.append((W[idx(o["from"])]["s"], W[idx(o["to"])]["e"], o["angle"]))
+        if "@" in str(o["from"]) or "@" in str(o["to"]):
+            fr, to = str(o["from"]), str(o["to"])
+            to = to if ".e" in to else to.replace("@", ".e@", 1) if "@" in to else to + ".e"
+            overrides_e.append((tl_e.ref(fr), tl_e.ref(to), o["angle"]))
+        else:
+            overrides.append((W[idx(o["from"])]["s"], W[idx(o["to"])]["e"], o["angle"]))
 
     def overlaps(a, b, ranges, frac=0.5):
         return any(min(b, y) - max(a, x) > frac * (b - a) for x, y in ranges)
+
+    # One camera only: the room view is the picture camera's whole frame.
+    ROOM = "wide" if "wide" in cams else "close.wide"
 
     # 1. Assign a wanted angle per unit.
     want = []
@@ -125,21 +135,22 @@ def main():
     for u in units:
         a, b = u["a"], u["b"]
         away = present(a, b) < 0.5  # the speaker has walked out of the picture camera's frame
-        forced = next((ang for x, y, ang in overrides if min(b, y) - max(a, x) > 0.5 * (b - a)), None)
+        forced = next((ang for x, y, ang in overrides_e if min(u["e1"], y) - max(u["e0"], x) > 0.5 * (u["e1"] - u["e0"])), None) \
+            or next((ang for x, y, ang in overrides if min(b, y) - max(a, x) > 0.5 * (b - a)), None)
         if forced:
-            want.append("wide" if away and forced.startswith("close.") else forced)
+            want.append(ROOM if away and forced.startswith("close.") else forced)
             continue
         if overlaps(a, b, audience, 0.4):
-            want.append("wide")
+            want.append(ROOM)
             continue
         slide_here = any(a - 0.5 <= t <= b for t in slides)
         if in_title(u):
-            want.append("wide" if away else "close.medium")
+            want.append(ROOM if away else "close.medium")
             slide_owed = slide_owed or slide_here
             continue
         if slide_here or slide_owed or overlaps(a, b, [tuple(x) for x in busy], 0.5):
             want.append("screen")
-            screen_hold = 6.0
+            screen_hold = plan.get("screenHold", 6.0)
             slide_owed = False
             continue
         if screen_hold > 0 and u["e1"] - u["e0"] < 8:
@@ -148,7 +159,7 @@ def main():
             continue
         screen_hold = 0.0
         if away:
-            want.append("wide")
+            want.append(ROOM)
             continue
         if u["i0"] in chapters:
             want.append("close.wide")
@@ -181,12 +192,17 @@ def main():
         ci += 1
         shots.append({"u0": i, "u1": j, "angle": angle})
         i = j + 1
-    # No shot under 2.5 s: merge into the previous one.
+    # No shot under 2.5 s: merge into the previous one (an angle the plan asked for stays).
+    def asked(s):
+        us = units[s["u0"]:s["u1"] + 1]
+        return any(ang == s["angle"] and min(u["b"], y) - max(u["a"], x) > 0.5 * (u["b"] - u["a"]) for u in us for x, y, ang in overrides) \
+            or any(ang == s["angle"] and min(u["e1"], y) - max(u["e0"], x) > 0.5 * (u["e1"] - u["e0"]) for u in us for x, y, ang in overrides_e)
+
     merged = []
     for s in shots:
         dur = units[s["u1"]]["e1"] - units[s["u0"]]["e0"]
         titled = any(in_title(u) for u in units[s["u0"]:s["u1"] + 1])
-        if merged and dur < 2.5 and s["angle"] not in ("wide",) and not titled:
+        if merged and dur < 2.5 and s["angle"] not in ("wide",) and not titled and not asked(s):
             merged[-1]["u1"] = s["u1"]
         else:
             merged.append(s)
@@ -202,6 +218,8 @@ def main():
     def crop_for(angle, a, b):
         if angle == "screen":
             return plan.get("screenCrop")  # e.g. the 16:9 slide area of a 16:10 screen recording
+        if angle in plan.get("fixedCrops", {}):
+            return plan["fixedCrops"][angle]  # a static camera: a framing chosen by eye ([x, y, w, h] on the source)
         if angle in ("close.wide", "wide"):
             return None
         if angle == "close.widepunch":

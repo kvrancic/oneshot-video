@@ -152,7 +152,7 @@ def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_au
             if cur:
                 split.append(cur)
         split = merge_short(split, W, part.get("minRun", min_run))
-        for r0, r1 in split:
+        for n_run, (r0, r1) in enumerate(split):
             prev_e = W[r0 - 1]["e"] if r0 > 0 else W[r0]["s"] - 1.0
             next_s = W[r1 + 1]["s"] if r1 + 1 < len(W) else W[r1]["e"] + 1.0
             a_lo = max(prev_e + 0.03, W[r0]["s"] - 0.45)
@@ -165,6 +165,9 @@ def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_au
             else:
                 a = max(a_lo, W[r0]["s"] - lead) if a_hi > a_lo else W[r0]["s"] - 0.02
                 b = min(b_hi, W[r1]["e"] + tail) if b_hi > b_lo else max(W[r1]["e"], next_s - 0.04)
+            if n_run == len(split) - 1 and part.get("tail"):
+                # a part may ring out longer (applause, a laugh): "tail": seconds after its last word
+                b = min(next_s - 0.04, W[r1]["e"] + float(part["tail"]))
             segs.append({"a": round(a, 3), "b": round(b, 3), "w": [r0, r1]})
     return segs
 
