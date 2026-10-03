@@ -66,6 +66,9 @@ def latency(src, chain, stream=None, at=(600.0, 1500.0, 2500.0), dur=20.0):
         cmd = ["ffmpeg", "-v", "error", "-ss", f"{t}", "-i", str(src), *(["-map", f"0:a:{stream}"] if stream is not None else []),
                "-t", f"{dur}", "-ac", "1", "-ar", "48000", *(["-af", af] if af else []), "-f", "f32le", "-"]
         return np.frombuffer(subprocess.run(cmd, capture_output=True, check=True).stdout, np.float32)
+    total = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(src)],
+                                 capture_output=True, text=True).stdout or 0)
+    at = [t for t in at if 0 <= t < total - dur - 1] or [total * f for f in (0.3, 0.5, 0.7)]  # stay inside a short recording
     lags = []
     for t in at:
         ref, out = pcm(t, None), pcm(t, chain)
@@ -94,7 +97,7 @@ def loudnorm(src, dst, chain, target=-16, lag=None):
     clean.unlink()
 
 
-def voice_camtime(audio, picture_dur, out, words, clean="light", chunk=170.0):
+def voice_camtime(audio, picture_dur, out, words, clean="light", chunk=170.0, custom_chain=None):
     """The microphone placed on the picture camera's clock over the whole recording
     (audio_time = t + offset + drift * (t - ref)). Drift is absorbed in pauses: the track is
     cut into ~chunk-second pieces at gaps between words, each placed at its own offset, so
@@ -126,7 +129,12 @@ def voice_camtime(audio, picture_dur, out, words, clean="light", chunk=170.0):
     lst.write_text("".join(f"file '{p}'\n" for p in parts))
     pre = Path(out).with_suffix(".pre.wav")
     run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-af", f"apad,atrim=end={picture_dur:.3f}", "-c:a", "pcm_f32le", pre])
-    loudnorm(pre, out, CHAINS[clean], lag=latency(audio["path"], CHAINS[clean], audio.get("stream"), at=[src.t(t) for t in (600, 1500, 2500)]))
+    chain = custom_chain or CHAINS[clean]
+    # probe the chain's delay on speech inside the recording (a short source has no 1500 s or 2500 s)
+    total = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", audio["path"]],
+                                 capture_output=True, text=True).stdout or 0)
+    probes = [t for t in (src.t(600), src.t(1500), src.t(2500)) if 0 <= t < total - 30] or [total * f for f in (0.3, 0.5, 0.7)]
+    loudnorm(pre, out, chain, lag=latency(audio["path"], chain, audio.get("stream"), at=probes))
     pre.unlink()
     shutil.rmtree(tmp)
 
@@ -294,7 +302,8 @@ def main():
     pic_dur = known.get(str(Path(close["path"]).resolve()), {}).get("duration") or probe(close["path"])["duration"]
     voice = media / "voice-camtime.wav"
     if not voice.exists():
-        voice_camtime(proj["audio"], pic_dur, voice, [w for w in W if w.get("src") != "room"])
+        voice_camtime(proj["audio"], pic_dur, voice, [w for w in W if w.get("src") != "room"],
+                      custom_chain=plan.get("audio", {}).get("chain"))
         print(f"voice -> {voice}")
     room = media / "room-camtime.wav"
     if not room.exists() and Path(close["path"]).exists():

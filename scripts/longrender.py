@@ -135,36 +135,80 @@ def plate(text, size=46, margin_v=64, pad_x=26, pad_y=14, radius=12, top=False):
     return f"{{\\an7\\pos(960,{y:.0f})\\p1}}{path}"
 
 
-def cues_from(tokens, max_chars=84, max_line=44, max_dur=6.5):
+EOS = re.compile(r"[.!?][\"')\]]?$")
+CONJ = {"and", "which", "that", "who", "because", "but", "so", "or", "where", "when", "while", "if", "until"}
+
+
+def cues_from(tokens, max_chars=84, max_line=44, max_dur=6.5, narrow=()):
+    """Subtitles by sentence: a sentence that fits is one subtitle; a longer one splits into the
+    fewest pieces that fit, at a comma or before a joining word where it can, never leaving fewer
+    than three words on either side. `narrow` spans (edit seconds) take one-line subtitles."""
+    import math
     tokens = [{**t, "end": min(t["end"], t["start"] + 1.5)} for t in tokens]
-    cues, cur = [], []
-    for n, t in enumerate(tokens):
-        if cur:
-            text = " ".join(x["text"] for x in cur + [t])
-            gap = t["start"] - cur[-1]["end"]
-            # A sentence's last word may run a little long rather than open the next cue alone.
-            fin = bool(re.search(r"[.!?][\"')\]]?$", t["text"]))
-            # the sentence ends within three words: keep them together rather than strand them
-            if not fin:
-                fin = any(re.search(r"[.!?][\"')\]]?$", x["text"]) for x in tokens[n:n + 3])
-            if (len(text) > max_chars + (12 if fin else 0) or t["end"] - cur[0]["start"] > max_dur + (1.5 if fin else 0) or gap > 1.2
-                    or t.get("speaker") != cur[-1].get("speaker")  # a student and the speaker never share a subtitle
-                    or re.search(r"[.!?][\"')\]]?$", cur[-1]["text"]) and len(" ".join(x["text"] for x in cur)) > 18):
-                cues.append(cur)
-                cur = []
+    runs, cur = [], []
+    for t in tokens:
+        if cur and (t["start"] - cur[-1]["end"] > 1.2 or t.get("speaker") != cur[-1].get("speaker")):
+            runs.append(cur); cur = []
         cur.append(t)
+        if EOS.search(t["text"]):
+            runs.append(cur); cur = []
     if cur:
-        cues.append(cur)
+        runs.append(cur)
+
+    def length(ts):
+        return len(" ".join(x["text"] for x in ts))
+
+    def split(ts):
+        limit = max_line - 8 if any(a <= ts[0]["start"] < b for a, b in narrow) else max_chars  # +8 slack still fits one line
+        if (length(ts) <= limit and ts[-1]["end"] - ts[0]["start"] <= max_dur + 1.5) or len(ts) < 6:
+            return [ts]
+        n = len(ts)
+        INF = float("inf")
+        dp, back = [0.0] + [INF] * n, [0] * (n + 1)
+        for i in range(1, n + 1):
+            for j in range(max(0, i - 40), i):
+                ch = ts[j:i]
+                L = length(ch)
+                if (L > limit + 8 or ch[-1]["end"] - ch[0]["start"] > max_dur + 1.5) and i - j > 1:
+                    continue
+                if (i - j < 3 and i < n) or (n - i < 3 and i < n) or (i - j < 3 and j > 0):
+                    continue  # no orphans at either end of a piece
+                good = i == n or re.search(r"[,;:]$", ts[i - 1]["text"]) or re.sub(r"\W", "", ts[i]["text"].lower()) in CONJ
+                cost = dp[j] + 100 + (0 if good else 45) + abs(L - limit * 0.75) * 0.3
+                if cost < dp[i]:
+                    dp[i], back[i] = cost, j
+        if dp[n] == INF:
+            k = math.ceil(length(ts) / limit)
+            step = math.ceil(n / k)
+            return [ts[q:q + step] for q in range(0, n, step)]
+        pieces, i = [], n
+        while i > 0:
+            pieces.append(ts[back[i]:i]); i = back[i]
+        return pieces[::-1]
+
+    cues = []
+    for r in runs:
+        for piece in split(r):
+            # a short sentence ("Okay.", "Good job.") shares a subtitle with what follows when it fits
+            if cues and length(cues[-1]) <= 18 and EOS.search(cues[-1][-1]["text"]) and length(cues[-1] + piece) <= max_chars \
+                    and piece[0]["start"] - cues[-1][-1]["end"] < 1.0 and piece[0].get("speaker") == cues[-1][-1].get("speaker"):
+                cues[-1] = cues[-1] + piece
+            else:
+                cues.append(piece)
     out = []
     new_sentence = True
     for c in cues:
         words = [x["text"] for x in c]
         text = " ".join(words)
-        if len(text) > max_line and len(words) > 1:
+        one_line = any(a <= c[0]["start"] < b for a, b in narrow) and len(text) <= 64
+        if len(text) > max_line and len(words) > 1 and not one_line:
             best, bi = 1e9, 1
             for k in range(1, len(words)):
                 l1, l2 = " ".join(words[:k]), " ".join(words[k:])
-                score = max(len(l1), len(l2)) - (6 if re.search(r"[,;:]$", words[k - 1]) else 0)
+                score = max(len(l1), len(l2)) - (8 if re.search(r"[,;:.?!]$", words[k - 1]) else 0) \
+                    - (5 if re.sub(r"\W", "", words[k].lower()) in CONJ else 0) \
+                    + (9 if words[k - 1].lower() in {"a", "an", "the", "of", "to", "in", "on", "for", "with", "my", "your", "its",
+                                                      "our", "their", "this", "these", "is", "are", "be", "was", "not", "very"} else 0)
                 if score < best:
                     best, bi = score, k
             text = " ".join(words[:bi]) + "\\N" + " ".join(words[bi:])
@@ -189,8 +233,8 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Sub,Inter SemiBold,48,&H00F4F1EA,&H000000FF,&H73000000,&H8C000000,0,0,0,0,100,100,-0.3,0,1,2.2,2,2,140,140,64,1
 Style: Box,Inter SemiBold,46,&H00F4F1EA,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,-0.3,0,1,0,0,2,140,140,64,1
 Style: Plate,Inter SemiBold,46,&H4D0B0B0B,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,2,0,0,0,1
-Style: SubTop,Inter SemiBold,48,&H00F4F1EA,&H000000FF,&H73000000,&H8C000000,0,0,0,0,100,100,-0.3,0,1,2.2,2,8,140,140,64,1
-Style: BoxTop,Inter SemiBold,46,&H00F4F1EA,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,-0.3,0,1,0,0,8,140,140,64,1
+Style: SubTop,Inter SemiBold,48,&H00F4F1EA,&H000000FF,&H73000000,&H8C000000,0,0,0,0,100,100,-0.3,0,1,2.2,2,8,140,140,30,1
+Style: BoxTop,Inter SemiBold,46,&H00F4F1EA,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,-0.3,0,1,0,0,8,140,140,30,1
 Style: PlateTop,Inter SemiBold,46,&H4D0B0B0B,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,8,0,0,0,1
 
 [Events]
@@ -297,7 +341,9 @@ def main():
         print(f"captions re-timed on the voice: {frac:.0%} matched, median shift {med * 1000:.0f} ms")
         tok_path.write_text(json.dumps(tokens))
     tokens = json.loads(tok_path.read_text())
-    cues = cues_from(tokens)
+    # one-line subtitles at the top zones and where a slide has text both top and bottom ("oneLine")
+    narrow = [(tl.ref(a), tl.ref(b)) for a, b in plan.get("captions", {}).get("top", []) + plan.get("captions", {}).get("oneLine", [])]
+    cues = cues_from(tokens, narrow=narrow)
     screen_spans = [(s["e0"], s["e1"]) for s in shots if s["cam"] == "screen"]
     # Inserts over a light picture (a title card) ask for the boxed subtitle too.
     screen_spans += [(tl.ref(i["from"]), tl.ref(i["to"])) for i in plan.get("inserts", []) if i.get("captionBox")]
@@ -310,13 +356,20 @@ def main():
     lines = []
     srt = []
     for n, c in enumerate(cues, 1):
+        # a subtitle reaching into a captions-off span (a chapter card) waits for it, or ends before it
+        for a_, b_ in hide_spans:
+            if c["start"] < b_ and c["end"] > a_ and not (a_ <= (c["start"] + c["end"]) / 2 < b_):
+                if c["end"] > b_:
+                    c["start"] = b_
+                else:
+                    c["end"] = a_
         mid = (c["start"] + c["end"]) / 2
         style = "Box" if any(a <= mid < b for a, b in screen_spans) else "Sub"
         if any(a <= mid < b for a, b in top_spans):
             style = "BoxTop" if style == "Box" else "SubTop"
         if c["end"] > p0 and c["start"] < p1 and not any(a <= mid < b for a, b in hide_spans):
             if style in ("Box", "BoxTop"):
-                lines.append(f"Dialogue: 0,{ass_ts(c['start'] - p0)},{ass_ts(c['end'] - p0)},{'PlateTop' if style == 'BoxTop' else 'Plate'},,0,0,0,,{plate(c['text'], top=style == 'BoxTop')}")
+                lines.append(f"Dialogue: 0,{ass_ts(c['start'] - p0)},{ass_ts(c['end'] - p0)},{'PlateTop' if style == 'BoxTop' else 'Plate'},,0,0,0,,{plate(c['text'], top=style == 'BoxTop', margin_v=30 if style == 'BoxTop' else 64)}")
             lines.append(f"Dialogue: 1,{ass_ts(c['start'] - p0)},{ass_ts(c['end'] - p0)},{style},,0,0,0,,{c['text']}")
         srt.append(f"{n}\n{srt_ts(c['start'])} --> {srt_ts(c['end'])}\n{c['text'].replace(chr(92) + 'N', chr(10))}\n")
     ass = d / f"captions-{tag}.ass"
