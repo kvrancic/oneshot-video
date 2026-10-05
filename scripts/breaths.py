@@ -2,7 +2,11 @@
 """Turn down breaths and the hiss between phrases (a speaker on a PA, a close lavalier).
 
   breaths.py SOURCE --words DIR/transcript.words.json --out DIR/voice-debreath.wav
-             [--stream 0] [--from S --to S] [--depth 14] [--report DIR/breaths.json]
+             [--stream 0] [--from S --to S] [--depth 14] [--min-gap 0] [--fade 0.03] [--report DIR/breaths.json]
+
+Ducking every gap between words leaves audible holes in fluent speech (the speaker heard "a weird
+silence between each two words"); on a PA, use --min-gap 0.45 --depth 7 --tail 0.2 --fade 0.08 so
+only the breaths between phrases go down and the words keep their room.
 
 Writes the whole source audio (48 kHz, its own clock) so it can replace the audio source in
 project.json. Every gap between two words (from the transcript) is lowered by --depth dB,
@@ -36,6 +40,8 @@ def main():
     ap.add_argument("--to", dest="b", type=float, default=1e9)
     ap.add_argument("--depth", type=float, default=14)
     ap.add_argument("--tail", type=float, default=0.12)
+    ap.add_argument("--min-gap", type=float, default=0.0, help="only gaps at least this long (s): short gaps between words stay untouched")
+    ap.add_argument("--fade", type=float, default=0.03, help="fade length in seconds")
     ap.add_argument("--report")
     args = ap.parse_args()
     x = load(args.source, args.stream)
@@ -53,7 +59,7 @@ def main():
     ducked, reactions = [], []
     for k in range(len(W) - 1):
         a, b = W[k]["e"] + args.tail, W[k + 1]["s"] - 0.04
-        if b - a < 0.08:
+        if b - a < 0.08 or W[k + 1]["s"] - W[k]["e"] < args.min_gap:
             continue
         seg = lvl[int(a * 100):int(b * 100)]
         loud = (seg > floor + 0.5 * (speech_med - floor)).mean() if len(seg) else 0
@@ -63,7 +69,7 @@ def main():
             continue
         g[int(a * SR):int(b * SR)] = lo
         ducked.append(b - a)
-    k = int(0.03 * SR)
+    k = int(args.fade * SR)
     cs = np.concatenate([[0.0], np.cumsum(g)])
     sm = (cs[k:] - cs[:-k]) / k
     g = np.concatenate([np.full(k // 2, sm[0]), sm, np.full(len(g) - len(sm) - k // 2, sm[-1])]).astype(np.float32)
