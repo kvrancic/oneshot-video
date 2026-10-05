@@ -297,7 +297,7 @@ def main():
         pre = d / ".mix.pre.wav"
         # Effects (plan "sfx": [{at: ref, file: kit name or path, gain: dB}]) and a pre-composed
         # bed (plan "bed": {file, at: ref, gainDb}) join the voice before loudness.
-        extra_in, extra_fc, labels = [], [], ["[0:a]", "[r]"]
+        extra_in, extra_fc, labels = [], [], ["[v0]", "[r]"]
         n_in = 2
         for e in plan.get("sfx", []):
             f = Path(str(e["file"])).expanduser()
@@ -319,7 +319,10 @@ def main():
             extra_fc.append(f"[{n_in}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume={bed.get('gainDb', 0)}dB,adelay={ms}:all=1[x{n_in}]")
             labels.append(f"[x{n_in}]"); n_in += 1
         run(["ffmpeg", "-v", "error", "-y", "-i", voice, "-i", room, *extra_in, "-filter_complex",
-             ";".join([f"[1:a]volume='min(1,{gate})':eval=frame[r]"] + extra_fc +
+             # everything stereo before the mix: amix otherwise folds to the mono voice's layout and a
+             # stereo bed (music, widened applause) comes out mono
+             ";".join(["[0:a]aformat=channel_layouts=stereo[v0]",
+                       f"[1:a]aformat=channel_layouts=stereo,volume='min(1,{gate})':eval=frame[r]"] + extra_fc +
                       [f"{''.join(labels)}amix=inputs={len(labels)}:normalize=0:duration=first[m]"]),
              "-map", "[m]", "-ar", "48000", "-ac", "2", pre])
         pr = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(pre), "-af",
