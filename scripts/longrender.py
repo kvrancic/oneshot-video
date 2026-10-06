@@ -398,7 +398,10 @@ def main():
         f0, f1 = round(max(s["e0"], p0) * FPS), round(min(s["e1"], p1) * FPS)
         nfr = f1 - f0
         import hashlib
-        key = hashlib.sha1(json.dumps([s["cam"], s.get("crop"), s["a"], s["angle"], grade.get(s["cam"])]).encode()).hexdigest()[:8]
+        cam = cams[s["cam"]]
+        src = Path(cam["path"]).stat()   # a rebuilt source (a new screen feed) renders its shots again
+        key = hashlib.sha1(json.dumps([s["cam"], s.get("crop"), s["a"], s["angle"], grade.get(s["cam"]),
+                                       src.st_size, int(src.st_mtime)]).encode()).hexdigest()[:8]
         out = shot_dir / f"{f0}-{f1}-{key}.mp4"  # named by content: a changed shot list reuses every unchanged shot
 
         def frames(p):
@@ -407,7 +410,6 @@ def main():
         # A cached shot is reused only at its exact length: one frame too many delays every later shot against the sound.
         if out.exists() and args.skip_shots or out.exists() and out.stat().st_size > 1000 and frames(out) == nfr:
             return out
-        cam = cams[s["cam"]]
         t = cam_time(cam, s["a"] + (f0 / FPS - s["e0"]))
         vf = []
         if s.get("crop"):

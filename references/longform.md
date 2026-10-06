@@ -54,6 +54,13 @@ A 100 minute talk: transcription about 10 min, tracking 15 to 25 min, story pass
 | `captions.oneLine` | `[[from, to], ...]` one-line subtitles where a slide has text both top and bottom |
 | `audio.chain` | an ffmpeg filter chain for the voice instead of the measured light/strong/rnn choice |
 | `angles` with `#i@last` | an angle for one copy of a line the cold open plays twice (the body's copy) |
+| `holds` across a cut | a hold on the last word kept before cut words gives the word after the cut that much lead-in, so a removed "Good job." leaves its pause |
+| `edit[].outAt` / `inAt` | `"#i+0.145"`: end or start a part inside a word, for a repeat said in one breath; splice at the closure of the same stop consonant in both copies ("chat\|bot"), read at 5 ms first |
+
+Check every join that removes words by reading the render back (whisper on 5 s around it): a clipped word
+drops out of the transcript ("chatbot, and 0.3%" read back as "chatbot, 0.3%" was a clipped "and").
+A keyword plate on a slide (top or bottom) decides which side the subtitles take: `capcheck.py`-style,
+test the subtitle box against the plate on the slide under each subtitle and use the free side.
 
 One camera only: wherever the director wants the room (audience, speaker out of frame) it takes the picture
 camera's whole frame. An angle asked for in `angles` is never merged away for being shorter than 2.5 s.

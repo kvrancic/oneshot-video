@@ -418,8 +418,9 @@ def main():
                     shutil.copy2(src, dst)
             f0 = fr(tl.ref(x.get("at", 0)))
             nf = files.dur(dst)
+            skip = max(-f0, 0)  # a layer that leads in before the timeline starts loses those frames
             n += 1
-            clipitem(v3, files, n, dst, f0, f0 + nf, 0, name=x.get("name", src.stem), fit=(100.0, 0.0, 0.0))
+            clipitem(v3, files, n, dst, f0 + skip, f0 + nf, skip, name=x.get("name", src.stem), fit=(100.0, 0.0, 0.0))
             if x.get("hidesCaptions"):
                 hidden.append((f0 / FPS, (f0 + nf) / FPS))
     for x in al:  # each music bed on its own track pair, so alternatives sit side by side

@@ -9,13 +9,18 @@ transcript ([#index] in transcript.txt); this script turns them into cuts:
   pauses inside a range longer than --max-pause are cut out (a jump cut the camera
   hides with its alternating cut zoom); "keepPauses": true on a part keeps them, and
   plan "holds": {"word index": seconds} lets the pause after that word run longer (a
-  question that needs a beat, a line that should land, a slide to read).
+  question that needs a beat, a line that should land, a slide to read); on the last word
+  kept before cut words, the word after the cut keeps that much lead-in, so the removed
+  words leave their pause behind ("So, higher. Good job. And" -> "So, higher. And").
 
 Writes plan["segments"] = [{a, b, w: [first, last]}] and prints the edit as text so
 every head and tail can be read before anything renders.
 
 Top-level "cut": [word indices] removes those words from the audio (fillers, a
-stumble); captions.drop only hides words from the captions.
+stumble); captions.drop only hides words from the captions. A repeat with no pause
+around it ("the free chatbot. At least free chatbot and") can only be cut inside a word:
+end one part with "outAt": "#i+0.145" and start the next with "inAt": "#k+0.310" at the
+closure of the same stop consonant in both copies (read the level at 5 ms first).
 
   edl.py clip/plan.json [--words work/<key>/transcript.words.json] [--max-pause 0.7]
 """
@@ -74,6 +79,12 @@ def noise_floor(src, lo, hi):
 
 
 FILLER_WORDS = {"um", "uh", "uhm", "erm", "er", "ah", "hmm", "mm", "mhm"}
+
+
+def word_ref(ref, W):
+    """'#i' (a word's start) or '#i.e' (its end), optionally +/- seconds -> source time."""
+    m = re.fullmatch(r"#(\d+)(\.e)?([+-][\d.]+)?", ref)
+    return W[int(m[1])]["e" if m[2] else "s"] + float(m[3] or 0)
 
 
 def merge_short(runs, W, min_run, max_gap=1.6):
@@ -159,15 +170,32 @@ def resolve(edit, W, src, cuts=(), max_pause=0.7, lead=0.10, tail=0.22, check_au
             a_hi = W[r0]["s"] - 0.02
             b_lo = W[r1]["e"] + 0.06
             b_hi = min(next_s - 0.04, W[r1]["e"] + 0.6)
+            lead_r = lead
+            hold = holds.get(split[n_run - 1][1]) if n_run else None
+            h_lo, h_hi = max(prev_e + 0.03, W[r0]["s"] - (hold or 0) - 0.1), min(a_hi, W[r0]["s"] - (hold or 0) + 0.1)
+            if hold and h_hi > h_lo:
+                # a hold on the last word kept before a cut carries over it: the next run keeps that much
+                # lead-in (its own room tone), so the removed words leave their pause behind
+                a_lo, a_hi, lead_r = h_lo, h_hi, hold
             if check_audio:
-                a = quietest(src, a_lo, a_hi, W[r0]["s"] - lead) if a_hi > a_lo else W[r0]["s"] - 0.02
-                b = quietest(src, b_lo, b_hi, W[r1]["e"] + tail) if b_hi > b_lo else max(W[r1]["e"], next_s - 0.04)
+                # words that touch (no gap between their times): the times there are a guess, so the cut
+                # goes to the quietest point near the boundary (exactly on it can clip the next word's onset)
+                a = quietest(src, a_lo, a_hi, W[r0]["s"] - lead_r) if a_hi > a_lo else quietest(src, W[r0]["s"] - 0.1, W[r0]["s"] + 0.03, W[r0]["s"])
+                b = quietest(src, b_lo, b_hi, W[r1]["e"] + tail) if b_hi > b_lo else quietest(src, W[r1]["e"] - 0.1, W[r1]["e"] + 0.04, W[r1]["e"])
             else:
                 a = max(a_lo, W[r0]["s"] - lead) if a_hi > a_lo else W[r0]["s"] - 0.02
                 b = min(b_hi, W[r1]["e"] + tail) if b_hi > b_lo else max(W[r1]["e"], next_s - 0.04)
             if n_run == len(split) - 1 and part.get("tail"):
                 # a part may ring out longer (applause, a laugh): "tail": seconds after its last word
                 b = min(next_s - 0.04, W[r1]["e"] + float(part["tail"]))
+            # a splice inside a word (the closure of a stop: "chat|bot"): "inAt"/"outAt" anchor the part's
+            # first or last cut to a word, snapped to the quietest 10 ms within 15 ms
+            if n_run == 0 and part.get("inAt"):
+                t = word_ref(part["inAt"], W)
+                a = quietest(src, t - 0.015, t + 0.015, t) if check_audio else t
+            if n_run == len(split) - 1 and part.get("outAt"):
+                t = word_ref(part["outAt"], W)
+                b = quietest(src, t - 0.015, t + 0.015, t) if check_audio else t
             segs.append({"a": round(a, 3), "b": round(b, 3), "w": [r0, r1]})
     return segs
 
