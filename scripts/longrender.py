@@ -400,7 +400,12 @@ def main():
         import hashlib
         key = hashlib.sha1(json.dumps([s["cam"], s.get("crop"), s["a"], s["angle"], grade.get(s["cam"])]).encode()).hexdigest()[:8]
         out = shot_dir / f"{f0}-{f1}-{key}.mp4"  # named by content: a changed shot list reuses every unchanged shot
-        if out.exists() and args.skip_shots or out.exists() and out.stat().st_size > 1000:
+
+        def frames(p):
+            return int(subprocess.run(["ffprobe", "-v", "error", "-count_packets", "-select_streams", "v:0", "-show_entries",
+                                       "stream=nb_read_packets", "-of", "csv=p=0", str(p)], capture_output=True, text=True).stdout.strip() or 0)
+        # A cached shot is reused only at its exact length: one frame too many delays every later shot against the sound.
+        if out.exists() and args.skip_shots or out.exists() and out.stat().st_size > 1000 and frames(out) == nfr:
             return out
         cam = cams[s["cam"]]
         t = cam_time(cam, s["a"] + (f0 / FPS - s["e0"]))
@@ -425,13 +430,17 @@ def main():
                  c2["path"], "-frames:v", str(nfr), "-vf", f"scale=1920:1080:flags=lanczos,setsar=1,fps=30,{grade.get('close', 'null')},format=yuv420p",
                  "-an", "-c:v", "h264_videotoolbox", "-b:v", "14M", "-profile:v", "high", "-g", "60", "-r", "30", out])
         # A short decode (a camera that stopped early) is padded with its last frame.
-        got = int(subprocess.run(["ffprobe", "-v", "error", "-count_packets", "-select_streams", "v:0", "-show_entries",
-                                  "stream=nb_read_packets", "-of", "csv=p=0", str(out)], capture_output=True, text=True).stdout.strip() or 0)
+        got = frames(out)
         if got < nfr:
             pad = out.with_suffix(".pad.mp4")
             run(["ffmpeg", "-v", "error", "-y", "-i", out, "-vf", f"tpad=stop_mode=clone:stop={nfr - got}", "-an",
                  "-c:v", "h264_videotoolbox", "-b:v", "14M", "-profile:v", "high", "-g", "60", "-r", "30", pad])
             pad.replace(out)
+        elif got > nfr:
+            # The encoder once returned 3 frames over under load (the frames are extra at the end; no B-frames, so a copy cuts clean)
+            cut = out.with_suffix(".cut.mp4")
+            run(["ffmpeg", "-v", "error", "-y", "-i", out, "-frames:v", str(nfr), "-c", "copy", cut])
+            cut.replace(out)
         return out
 
     t1 = time.time()
