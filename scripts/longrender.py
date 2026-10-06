@@ -325,12 +325,13 @@ def main():
                        f"[1:a]aformat=channel_layouts=stereo,volume='min(1,{gate})':eval=frame[r]"] + extra_fc +
                       [f"{''.join(labels)}amix=inputs={len(labels)}:normalize=0:duration=first[m]"]),
              "-map", "[m]", "-ar", "48000", "-ac", "2", pre])
+        # -1.5 dBTP: AAC overshoots a sharp clap by up to about 1 dB, so -1 can come out at 0 dBFS
         pr = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(pre), "-af",
-                             "alimiter=limit=0.89:level=false,loudnorm=I=-14:TP=-1:LRA=11:print_format=json", "-f", "null", "-"],
+                             "alimiter=limit=0.84:level=false,loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"],
                             capture_output=True, text=True).stderr
         m = json.loads(pr[pr.rindex("{"):pr.rindex("}") + 1])
         run(["ffmpeg", "-v", "error", "-y", "-i", pre, "-af",
-             f"alimiter=limit=0.89:level=false,loudnorm=I=-14:TP=-1:LRA=11:measured_I={m['input_i']}:measured_TP={m['input_tp']}:"
+             f"alimiter=limit=0.84:level=false,loudnorm=I=-14:TP=-1.5:LRA=11:measured_I={m['input_i']}:measured_TP={m['input_tp']}:"
              f"measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true",
              "-ar", "48000", mixed])
         pre.unlink(missing_ok=True)
