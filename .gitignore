@@ -1,12 +1,17 @@
-.venv/
-models/*.bin
-models/*.onnx
-work/
-renderer/node_modules/
-renderer/public/jobs/
-renderer/public/lab/
-renderer/out/
+# runtime, linked in from ~/.oneshot-video by install.sh
+skills/oneshot-video/.venv
+skills/oneshot-video/bin
+skills/oneshot-video/models/*.bin
+skills/oneshot-video/models/*.onnx
+skills/oneshot-video/models/*.rnnn
+skills/oneshot-video/renderer/node_modules
+skills/oneshot-video/renderer/public/jobs/
+skills/oneshot-video/renderer/public/lab/
+skills/oneshot-video/renderer/out/
+# work folders
+/work/
+/oneshot-video/
+.env
 *.log
 .DS_Store
-bin/
 __pycache__/

@@ -1,0 +1,17 @@
+name: Idea or improvement
+description: A new mode, caption preset, graphic, export target or a better default.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should oneshot-video do?
+      description: Describe the video you were trying to make and where the current workflow fell short. Example clips or links help.
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to build this myself (see CONTRIBUTING.md)

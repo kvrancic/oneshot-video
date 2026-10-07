@@ -1,0 +1,15 @@
+{
+  "name": "oneshot-video",
+  "description": "oneshot-video: a local AI video studio skill for Claude Code and other agents.",
+  "owner": {
+    "name": "Karlo Vrancic",
+    "url": "https://github.com/kvrancic"
+  },
+  "plugins": [
+    {
+      "name": "oneshot-video",
+      "source": "./",
+      "description": "One-shot AI video studio: full edits, viral clips and promos, with Premiere / Final Cut / Resolve hand-back."
+    }
+  ]
+}

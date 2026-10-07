@@ -1,0 +1,19 @@
+name: Show what you made
+description: Share a video you made with oneshot-video. The best ones go into the README gallery.
+labels: [showcase]
+body:
+  - type: input
+    id: link
+    attributes:
+      label: Link to the video
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options: [Clips, Full edit, Full edit + clips, From scratch]
+  - type: textarea
+    id: how
+    attributes:
+      label: What did you ask for, and what did you change by hand?

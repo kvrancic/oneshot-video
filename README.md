@@ -1,40 +1,186 @@
-# cutroom
+<div align="center">
 
-A Claude Code skill that turns a long video (lecture, talk, podcast, interview) into finished short clips, fully on your Mac.
+# oneshot-video
 
-It reads the whole transcript and picks moments that stand alone (a real head, a finished tail, a hook in the first three seconds), cuts them on word boundaries, follows the speaker with a virtual camera cropped from the 4K original, adds word-timed captions in nine presets and motion graphics built from what was said, mixes the sound to platform loudness and exports 9:16 and 16:9 files with covers, subtitles and post copy.
+**Your AI agent is now a video editor.**
+
+Raw footage in: a finished edit, captioned clips for every platform, or a promo from a brief.<br>
+Runs locally on your Mac. Hands the timeline back to Premiere Pro, Final Cut Pro and DaVinci Resolve.
+
+[![MIT](https://img.shields.io/badge/license-MIT-black)](LICENSE)
+[![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)](#requirements)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-D97757)](#install)
+[![Agent Skills](https://img.shields.io/badge/Codex%20·%20Cursor%20·%20OpenCode%20·%20Gemini-skill-4B5563)](#install)
+
+<img src="docs/media/trailer.gif" width="720" alt="The oneshot-video trailer: clips, a full-edit timeline, a from-scratch opener, a split-flap board spelling ONESHOT">
+
+<sub>This trailer was made by oneshot-video itself, in from-scratch mode, music included. <a href="docs/media/trailer-720p.mp4">Watch it with sound</a> · <a href="skills/oneshot-video/examples/trailer">its source</a></sub>
+
+</div>
+
+```text
+> Use oneshot-video on ~/Movies/keynote/
+
+  What should I make?
+  ❯ Full edit + clips   the whole talk cut tight, then the best moments as shorts   (recommended: 3 cameras, 52 min)
+    Full edit           fillers and dead air out, best angle, titles, chapters, subtitles
+    Clips               standalone 9:16 and 16:9 clips with captions and graphics
+    From scratch        a promo or opener from a brief, with stock footage and motion graphics
+
+  Hand it back as?  [x] Finished MP4s  [x] Premiere Pro  [ ] Final Cut Pro (beta)  [ ] DaVinci Resolve (beta)
+```
+
+## What it makes
+
+| | Mode | You give it | You get back |
+|---|---|---|---|
+| ✂️ | **Clips** | Any long video: a talk, a podcast, a stream, a finished edit | 3 to 6 clips that stand alone, cut on word boundaries, reframed to 9:16 by a virtual camera that follows the speaker, with word-timed captions, motion graphics, a loudness-correct mix, a cover, an .srt and post copy per platform |
+| 🎬 | **Full edit** | A raw recording: one or more cameras, a mic, a screen recording | The whole talk cut tight: synced, fillers and restarts out, the best angle on every sentence, a matched grade, an opening title, chapters, subtitles, YouTube chapter timestamps |
+| 🔁 | **Full edit + clips** | The same raw recording | Both, from one sync and one look |
+| ✨ | **From scratch** | A brief, and maybe a logo, a song or one clip | A finished promo, opener or trailer: a story on the beat, Pexels stock footage, a music edit cut on the bar, motion graphics, mastered to -14 LUFS |
+
+Full edits and from-scratch films can come back as a timeline in your editor, on your original media, so you finish the last 10 percent by hand.
+
+<div align="center">
+<img src="docs/media/clips.gif" width="720" alt="Three vertical clips with word-timed captions, cut from a commencement speech">
+<br><sub>Three clips an agent picked, cut, reframed and captioned from a 25-minute <a href="#credits">CC BY</a> commencement speech, following this skill with no human input.</sub>
+</div>
 
 ## Install
 
+**Claude Code** (plugin):
+
 ```bash
-git clone <this repo> ~/Documents/projects/cutroom
-~/Documents/projects/cutroom/scripts/install.sh      # venv, models (~1 GB), Remotion, sound kit, ~/.claude/skills/cutroom symlink
-~/Documents/projects/cutroom/scripts/doctor.sh       # checks everything
+claude plugin marketplace add kvrancic/oneshot-video
+claude plugin install oneshot-video@oneshot-video
 ```
 
-Needs macOS on Apple Silicon, Homebrew, Node 20+, about 5 GB free while rendering. Everything runs locally; Pexels (B-roll) and Wikimedia Commons (portraits) are optional network calls.
+<details>
+<summary><b>Codex, Cursor, OpenCode, Gemini CLI, GitHub Copilot</b></summary>
 
-## Use
+```bash
+npx skills add kvrancic/oneshot-video
+```
 
-In Claude Code:
+Or clone it and link `skills/oneshot-video` into `~/.agents/skills`, which all of these agents read.
 
-> Use cutroom on ~/Movies/talk.mov. I want 4 clips for TikTok and X and one about the part where I compare the AI CEOs.
+</details>
 
-Claude asks a few multiple-choice questions (formats, energy, extras), transcribes, proposes clips, asks which to make, plans each one, shows stills, renders, checks and packages everything into `exports/<date>/` with a review page. Say "auto" to skip the questions.
+<details>
+<summary><b>From a clone</b> (to hack on it)</summary>
 
-## Full edits
+```bash
+git clone https://github.com/kvrancic/oneshot-video && cd oneshot-video
+skills/oneshot-video/scripts/install.sh    # also links the skill into ~/.claude/skills and ~/.agents/skills
+```
 
-`cutroom-edit` (in `edit/`, linked as `~/.claude/skills/cutroom-edit`) edits a whole talk: it syncs cameras, microphone and screen recording, cuts fillers and restarts, proposes section cuts for approval, directs a multicam edit (speaker, room, screen, 4K punch-ins), gates the room mic in for audience questions, grades the cameras, adds a title and chapter titles behind the speaker, motion-graphics B-roll and subtitles and exports YouTube chapters.
+</details>
 
-> Use cutroom-edit on ~/Movies/talk/ (two cameras, a mic and a screen recording). Keep it tight, cut the demos.
+The first time you use it, the agent runs `doctor.sh` and offers to install what is missing: ffmpeg, whisper.cpp, a Python venv, the models (about 1 GB) and Remotion. Heavy files live in `~/.oneshot-video`, so updates take seconds.
 
-## Layout
+Then just ask:
 
-- `SKILL.md`: the workflow Claude follows.
-- `scripts/`: ingest, transcribe, track, candidates, edl, reframe, audio, assets, sfx, render, qa, package; for full edits signals, longplan, multicam, grade, longrender.
-- `renderer/`: the Remotion project (captions, overlays, graphics).
-- `references/`: selection doctrine, plan schema, editing, captions, graphics, sound, platforms, review checklist, research summary.
-- `docs/research/`: the four full research reports.
-- `examples/`: a complete plan for a 2:45 clip with a stance board, cold open and reveal.
+> Use oneshot-video on ~/Movies/podcast-ep12.mp4. Four clips for TikTok and LinkedIn, and one about the part where we argue about remote work.
 
-Fonts: Inter, Instrument Serif and Geist Mono (SIL OFL). Remotion is free for individuals and companies of up to three people; larger companies need a Remotion licence.
+> Edit my talk in ~/Movies/meetup/ (two cameras, a lavalier and a screen recording). Keep it tight, cut the live demo, give me a Premiere project.
+
+> Make a 45-second opener for our conference. The next one is in Lisbon. Here's our logo and a song we licensed.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[Footage or a brief] --> M{Start menu}
+    M -->|clips / full edit| I[Ingest<br/>best picture, best mic,<br/>sync and drift]
+    I --> T[Transcribe<br/>Whisper + Parakeet,<br/>every word indexed]
+    T --> S[Story pass<br/>the agent reads it all,<br/>picks moments or cuts]
+    S --> G{Gates}
+    G -->|mid-thought, dangling<br/>reference, stumble| S
+    G --> P[Plan JSON<br/>word ranges, layout,<br/>captions, graphics]
+    M -->|from scratch| B[Beat sheet<br/>music edit on the bar,<br/>stock from Pexels]
+    B --> P
+    P --> R[Render<br/>virtual camera, Remotion,<br/>mix to -14 LUFS]
+    R --> Q[Look and critique<br/>stills, contact sheets,<br/>critic agents]
+    Q -->|defects| P
+    Q --> O[MP4s + captions + post copy]
+    Q --> X[Premiere / Final Cut /<br/>Resolve timeline]
+```
+
+The agent never types a timestamp. Every cut is a range of word indices, so it lands on a pause or a word boundary, never mid-word, and a re-cut is an edit to a small JSON plan that rebuilds only what changed. Gates reject clips that start on "so" or "and", end mid-sentence, or point at something the viewer never saw ("as I showed you"). Then the agent looks at its own stills and contact sheets, and a fresh critic agent reviews them before anything is rendered at full quality.
+
+<details>
+<summary><b>The stack</b> (all local)</summary>
+
+| Job | Tool |
+|---|---|
+| Words and timings | whisper.cpp large-v3-turbo and NVIDIA Parakeet TDT v3, cross-checked; doubtful words flagged |
+| Faces and the virtual camera | YuNet face detection, OpenCV, a smoothed crop path from the full-resolution original |
+| Text behind the speaker | Apple Vision person segmentation |
+| Captions, graphics, from-scratch films | Remotion (React) |
+| Sound | ffmpeg: RNNoise and afftdn cleaning with latency compensation, ducking, two-pass loudness to -14 LUFS |
+| Music timing | a numpy/scipy beat tracker, bar-accurate splices on drum transients |
+| Hand-back | FCP7 XML (Premiere, Resolve) and FCPXML 1.10 (Final Cut, Resolve), .srt, a .cube LUT of the grade |
+
+Optional network calls: Pexels (stock), Wikimedia Commons (portraits of public figures), GitHub (bug reports). Nothing else leaves the machine except what your agent itself sends to its model.
+
+</details>
+
+## Hand it back to your editor
+
+| | Premiere Pro | Final Cut Pro | DaVinci Resolve |
+|---|---|---|---|
+| Format | FCP7 XML | FCPXML 1.10 | either |
+| Status | ✅ used on real projects | 🧪 beta, validated against the FCPXML DTD | 🧪 beta |
+| Every shot on the original camera files | ✅ | ✅ | ✅ |
+| Punch-ins as editable scale and position | ✅ | ✅ | ✅ |
+| Graphics on their own track | ✅ | ✅ connected clips | ✅ |
+| Voice, room mic, music and effects on separate tracks | ✅ | ✅ | ✅ |
+| Chapter markers, subtitles (.srt), grade (.cube LUT) | ✅ | ✅ | ✅ |
+
+If you open a beta export in Final Cut or Resolve, please [tell us how it went](../../issues/new?template=bug.yml). That is the fastest way to turn it green.
+
+## Made from almost nothing
+
+<div align="center">
+<img src="docs/media/reveal.gif" width="720" alt="A split-flap board spells BOSTON, then the payoff card lands on the beat">
+<br><sub>A 54-second conference opener, made in one conversation. <a href="docs/media/reveal-720p.mp4">Watch it with sound</a></sub>
+</div>
+
+This opener was the first real job for from-scratch mode. The brief: announce that next year's conference is in Boston, to be played live in a ballroom. The material: a 6-second phone clip of five students shouting at a statue, a licensed song and a logo.
+
+What the agent did, in one conversation:
+
+- **Cut the song on the bar.** It tracked the beat (143.5 BPM), spliced three sections on drum transients and pinned every lyric hit to a frame by its vocal onset.
+- **Wrote the story onto the lyrics.** A split-flap board spells the city one letter per clue and locks the B on the sung "Bos-".
+- **Found the footage.** 50 Pexels searches, 28 clips downloaded, 20 used, each checked for the right city (stock "Boston" includes Prague and Philadelphia).
+- **Built the motion graphics** in Remotion: the board, a route map that dives into Massachusetts, the type, the payoff card.
+- **Reviewed itself.** Three critic agents (a film editor, the client, an audience member) scored each version until all three signed off. v1 rendered 62 minutes after the request, before any human note.
+- **Mastered it and handed it back** as Premiere layers: footage on V1, graphics with alpha on V2, music, effects and voice on their own tracks.
+
+Every lesson from that session is now a rule in [`workflows/from-scratch.md`](skills/oneshot-video/workflows/from-scratch.md): the unflagged AAC priming that made every hit 43 ms late, why an opener ends on its peak and not a fade, why a spinning board must never show the answer early. Every component is in the [kit](skills/oneshot-video/renderer/src/kit).
+
+## Requirements
+
+- macOS on Apple Silicon (hardware encoding and Apple Vision). Linux support is the most wanted contribution.
+- Homebrew, Node 20+, about 3 GB for tools and models, 5 GB free while rendering.
+- An agent that runs skills: Claude Code, Codex CLI, Cursor, OpenCode, Gemini CLI or GitHub Copilot.
+
+Speed on an M3 Pro: a 25-minute talk transcribes in under 2 minutes, a 60-second clip renders in about a minute per format, and the whole clips run above (transcript, 12 candidates, three clips planned, critiqued, rendered, checked and packaged) took 35 minutes with no human input. A one-minute from-scratch film renders and masters in 3 to 10 minutes.
+
+## Found a bug? Want a feature?
+
+Ask your agent to **"report a oneshot-video bug"**. It drafts an issue with your versions and the doctor output, scrubs your paths, user name and emails, shows you the draft and files it only when you say so.
+
+Ideas, new caption presets, Linux support, verified Final Cut imports: see [CONTRIBUTING.md](CONTRIBUTING.md). Forking it to match your own channel's look is the intended use: the agent reads the docs on every run, so a changed rule in a reference file changes the next edit.
+
+Made something with it? [Show it off](../../issues/new?template=showcase.yml). The best ones go in this README.
+
+## Credits
+
+Demo footage: "Sheryl Sandberg Gives UC Berkeley Commencement Keynote Speech" by UC Berkeley, via Wikimedia Commons, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), edited (cut, cropped, captioned). Stock footage in the Boston opener from [Pexels](https://www.pexels.com/license/).
+
+Built on [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), [Parakeet TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) (CC BY 4.0) via [onnx-asr](https://github.com/istupakov/onnx-asr), [Silero VAD](https://github.com/snakers4/silero-vad) (MIT), [YuNet](https://github.com/opencv/opencv_zoo) (MIT), the [RNNoise models](https://github.com/GregorR/rnnoise-models), [FFmpeg](https://ffmpeg.org) and [Remotion](https://www.remotion.dev). Fonts: Inter, Instrument Serif and Geist Mono (SIL Open Font License).
+
+**Remotion licence:** Remotion is free for individuals and companies of up to three people; larger companies need a [Remotion company licence](https://www.remotion.dev/license) to render with it.
+
+MIT © Karlo Vrancic

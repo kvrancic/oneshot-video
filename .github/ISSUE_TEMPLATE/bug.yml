@@ -1,0 +1,32 @@
+name: Bug report
+description: Something failed or came out wrong. Tip — ask your agent to "report a oneshot-video bug" and it fills this in for you.
+labels: [bug]
+body:
+  - type: input
+    id: step
+    attributes:
+      label: Which step failed?
+      placeholder: e.g. render.py 9x16, transcribe.py, premiere.py, fcpxml.py import in Resolve
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options: [Clips, Full edit, Full edit + clips, From scratch, Export only]
+  - type: dropdown
+    id: harness
+    attributes:
+      label: Agent
+      options: [Claude Code, Codex CLI, OpenCode, Cursor, Gemini CLI, Other]
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Output of scripts/doctor.sh and the error
+      render: text
