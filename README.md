@@ -42,8 +42,8 @@ Runs locally on your Mac. Hands the timeline back to Premiere Pro, Final Cut Pro
 Full edits and from-scratch films can come back as a timeline in your editor, on your original media, so you finish the last 10 percent by hand.
 
 <div align="center">
-<img src="docs/media/clips.gif" width="720" alt="Three vertical clips with word-timed captions, cut from a commencement speech">
-<br><sub>Three clips an agent picked, cut, reframed and captioned from a 25-minute <a href="#credits">CC BY</a> commencement speech, following this skill with no human input.</sub>
+<img src="docs/media/clips.gif" width="300" alt="Vertical clips: a full-screen takeover line, PLUGIN behind a speaker opening a box, a number counting up to 11 days, VIRAL and STRONGER behind the speakers">
+<br><sub>Big moments from five clips an agent picked, cut, reframed and finished from two 25-minute <a href="#credits">CC BY</a> talks, with no human input: takeovers, words behind the speaker, count-ups, punch-ins, a sound under every graphic.</sub>
 </div>
 
 ## Install
@@ -165,7 +165,7 @@ Every lesson from that session is now a rule in [`workflows/from-scratch.md`](sk
 - Homebrew, Node 20+, about 3 GB for tools and models, 5 GB free while rendering.
 - An agent that runs skills: Claude Code, Codex CLI, Cursor, OpenCode, Gemini CLI or GitHub Copilot.
 
-Speed on an M3 Pro: a 25-minute talk transcribes in under 2 minutes, a 60-second clip renders in about a minute per format, and the whole clips run above (transcript, 12 candidates, three clips planned, critiqued, rendered, checked and packaged) took 35 minutes with no human input. A one-minute from-scratch film renders and masters in 3 to 10 minutes.
+Speed on an M3 Pro: a 25-minute talk transcribes in under 2 minutes, a 60-second clip renders in about a minute per format, and a whole clips run on a 25-minute talk (transcript, 12 candidates, three clips planned, critiqued, rendered, checked and packaged) took 35 minutes with no human input. A one-minute from-scratch film renders and masters in 3 to 10 minutes.
 
 ## Found a bug? Want a feature?
 
@@ -177,7 +177,7 @@ Made something with it? [Show it off](../../issues/new?template=showcase.yml). T
 
 ## Credits
 
-Demo footage: "Sheryl Sandberg Gives UC Berkeley Commencement Keynote Speech" by UC Berkeley, via Wikimedia Commons, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), edited (cut, cropped, captioned). Stock footage in the Boston opener from [Pexels](https://www.pexels.com/license/).
+Demo footage: "Sheryl Sandberg Gives UC Berkeley Commencement Keynote Speech" by UC Berkeley, via Wikimedia Commons, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), edited (cut, cropped, captioned). "Keynote" by Ton Roosendaal, Blender Conference 2023, [Blender Foundation](https://video.blender.org/videos/watch/403360bb-0c5c-4b19-928f-0417ceec16b4), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), edited (cut, cropped, captioned). Stock footage in the Boston opener from [Pexels](https://www.pexels.com/license/).
 
 Built on [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), [Parakeet TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) (CC BY 4.0) via [onnx-asr](https://github.com/istupakov/onnx-asr), [Silero VAD](https://github.com/snakers4/silero-vad) (MIT), [YuNet](https://github.com/opencv/opencv_zoo) (MIT), the [RNNoise models](https://github.com/GregorR/rnnoise-models), [FFmpeg](https://ffmpeg.org) and [Remotion](https://www.remotion.dev). Fonts: Inter, Instrument Serif and Geist Mono (SIL Open Font License).
 

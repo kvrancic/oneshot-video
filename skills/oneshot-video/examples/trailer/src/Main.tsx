@@ -1,7 +1,10 @@
-import { Video } from "@remotion/media";
+import { Audio } from "@remotion/media";
 import React from "react";
-import { AbsoluteFill, Easing, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { Board, Burst, BuildTo, Film, Finish, Flash, KIT_FONTS, Label, Layer, loadFonts, MaskLines, Music, planFromLocks, Seg, Sfx, Shot, Slam, useTheme } from "./kit";
+import { AbsoluteFill, Easing, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  Board, Burst, BuildTo, Film, Finish, Flash, hears, KIT_FONTS, Label, Layer, loadFonts, MaskLines, planFromLocks, Seg, Sfx, Shot, Slam,
+  useLayer, useTheme, Vertical, Whip,
+} from "./kit";
 import { BEATS, T } from "./timing";
 
 loadFonts(KIT_FONTS);
@@ -12,49 +15,42 @@ const out = Easing.bezier(0.16, 1, 0.3, 1);
 
 const Plate: React.FC = () => {
   const frame = useCurrentFrame();
-  return <AbsoluteFill className="plate" style={{ background: `radial-gradient(ellipse at ${50 + Math.sin(frame / 50) * 14}% 35%, #1d2a45 0%, #0A0A0D 70%)` }} />;
+  return <AbsoluteFill className="plate" style={{ background: `radial-gradient(ellipse at ${50 + Math.sin(frame / 40) * 16}% 35%, #22325a 0%, #0A0A0D 70%)` }} />;
 };
 
-const Kicker: React.FC<{ n: string; mode: string; line: string }> = ({ n, mode, line }) => (
-  <div style={{ position: "absolute", left: 120, top: 96 }}>
-    <Label chip={`MODE ${n}`} text={mode} size={34} />
-    <div style={{ marginTop: 28 }}><MaskLines lines={[line]} size={64} font="serif" delay={6} /></div>
-  </div>
-);
-
-// Three phones rise in on the beat, each playing a finished clip.
-const Phone: React.FC<{ src: string; i: number }> = ({ src, i }) => {
+// A feature called out beside the vertical clip: an accent chip and a two-line label that slides in.
+const Callout: React.FC<{ side: "left" | "right"; chip: string; lines: string[]; at?: number }> = ({ side, chip, lines, at = 6 }) => {
   const frame = useCurrentFrame();
-  const p = interpolate(frame, [8 + i * 15, 24 + i * 15], [0, 1], { ...clamp, easing: out });
+  const th = useTheme();
+  const p = interpolate(frame, [at, at + 10], [0, 1], { ...clamp, easing: out });
+  const pos = side === "left" ? { left: 110 } : { right: 110 };
   return (
-    <div className="plate" style={{ width: 390, height: 693, borderRadius: 40, overflow: "hidden", border: "6px solid #1b1b20",
-      boxShadow: "0 30px 80px rgba(0,0,0,.6)", transform: `translateY(${(1 - p) * 700}px) rotate(${(1 - p) * (i - 1) * 6}deg)`, opacity: p }}>
-      <Video src={staticFile(`footage/${src}`)} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+    <div style={{ position: "absolute", top: 380, width: 520, ...pos, textAlign: side === "left" ? "left" : "right",
+      opacity: p, transform: `translateX(${(1 - p) * (side === "left" ? -60 : 60)}px)` }}>
+      <span style={{ background: th.accent, color: "#fff", fontFamily: th.mono, fontWeight: 700, fontSize: 30, letterSpacing: "0.14em", padding: "8px 14px" }}>{chip}</span>
+      <div style={{ marginTop: 22 }}><MaskLines lines={lines} size={72} delay={at + 2} stagger={4} align={side === "left" ? "left" : "left"} /></div>
     </div>
   );
 };
 
-const Clips: React.FC = () => (
-  <AbsoluteFill>
-    <Plate />
-    <Kicker n="01" mode="CLIPS" line="A 25-minute speech in. Clips that stand alone out." />
-    <AbsoluteFill style={{ flexDirection: "row", gap: 44, justifyContent: "flex-end", alignItems: "flex-end", paddingBottom: 60, paddingRight: 110 }}>
-      <Phone src="clip1.mp4" i={0} />
-      <Phone src="clip2.mp4" i={1} />
-      <Phone src="clip3.mp4" i={2} />
-    </AbsoluteFill>
-  </AbsoluteFill>
+const ClipScene: React.FC<{ src: string; n: string; chip: string; lines: string[]; side: "left" | "right"; whip: "left" | "right" | "up" }> = ({ src, n, chip, lines, side, whip }) => (
+  <Whip from={whip}>
+    <Vertical src={`footage/${src}`} volume={1} x={side === "left" ? 1920 - 560 : 560} />
+    <Callout side={side} chip={chip} lines={lines} />
+    <div style={{ position: "absolute", [side === "left" ? "left" : "right"]: 110, top: 96 }}><Label chip={`MODE ${n}`} text="CLIPS" size={34} at={0} /></div>
+    <Flash frames={4} peak={0.25} />
+  </Whip>
 );
 
-// A timeline: fillers and dead air (red) drop out and the shots close up, then it ships to the editors.
-const SHOT_W = [210, 70, 160, 50, 240, 90, 180, 60, 200, 140];
+// The full edit as a timeline: fillers (red) drop out, the shots close up, then it ships to the editors.
+const SHOT_W = [220, 70, 170, 50, 250, 90, 190, 60, 210, 150];
 const CUT = [false, true, false, true, false, true, false, true, false, false];
 const CAM = ["A", "", "B", "", "SCREEN", "", "A", "", "B", "A"];
 const Timeline: React.FC = () => {
   const frame = useCurrentFrame();
   const th = useTheme();
-  const k = interpolate(frame, [40, 85], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
-  const ship = interpolate(frame, [110, 130], [0, 1], { ...clamp, easing: out });
+  const k = interpolate(frame, [10, 34], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  const ship = interpolate(frame, [36, 48], [0, 1], { ...clamp, easing: out });
   let x = 0;
   const shots = SHOT_W.map((w, i) => {
     const ww = CUT[i] ? w * (1 - k) : w;
@@ -68,7 +64,7 @@ const Timeline: React.FC = () => {
       <text x={-24} y={y + h / 2 + 8} textAnchor="end" fill="rgba(255,255,255,.6)" fontFamily={th.mono} fontSize={22}>{label}</text>
       {shots.map((s) => s.w > 0.5 && (kind !== "g" || s.i % 4 === 0) && (
         <g key={s.i}>
-          <rect x={s.x} y={y} width={s.w} height={h} rx={6} fill={kind === "g" ? "#F5D90A" : color(s.i)} opacity={kind === "a" ? 0.55 : 0.9} />
+          <rect x={s.x} y={y} width={s.w} height={h} rx={6} fill={kind === "g" ? "#F5D90A" : color(s.i)} opacity={kind === "a" ? 0.55 : 0.92} />
           {kind === "a" && Array.from({ length: Math.floor(s.w / 9) }, (_, j) => (
             <rect key={j} x={s.x + 4 + j * 9} y={y + h / 2 - (6 + ((j * 37 + s.i * 11) % 22))} width={4} height={2 * (6 + ((j * 37 + s.i * 11) % 22))} fill="rgba(255,255,255,.75)" />
           ))}
@@ -79,36 +75,51 @@ const Timeline: React.FC = () => {
     </g>
   );
   return (
-    <AbsoluteFill>
+    <Whip from="up">
       <Plate />
-      <Kicker n="02" mode="FULL EDIT" line="Fillers and dead air out. The best angle on every sentence." />
+      <div style={{ position: "absolute", left: 120, top: 96 }}>
+        <Label chip="MODE 02" text="FULL EDIT" size={34} />
+        <div style={{ marginTop: 26 }}><MaskLines lines={["Fillers out.", "Best angle. Every sentence."]} size={84} delay={3} /></div>
+      </div>
       <svg width={1920} height={1080} style={{ position: "absolute" }}>
-        <g transform="translate(240, 430) scale(1.12)">
+        <g transform="translate(200, 470) scale(1.16)">
           {track(0, "V2", 48, "g")}
           {track(64, "V1", 90, "v")}
           {track(170, "A1", 90, "a")}
         </g>
       </svg>
-      <div style={{ position: "absolute", left: 280, top: 860, display: "flex", gap: 22, opacity: ship, transform: `translateY(${(1 - ship) * 30}px)` }}>
-        {["PREMIERE PRO", "FINAL CUT PRO", "DAVINCI RESOLVE"].map((n) => (
-          <div key={n} style={{ fontFamily: th.mono, fontWeight: 700, fontSize: 28, letterSpacing: "0.12em", color: "#fff", padding: "14px 22px", border: "2px solid rgba(255,255,255,.35)", borderRadius: 10 }}>{n}</div>
-        ))}
-        <div style={{ fontFamily: th.mono, fontSize: 26, color: "rgba(255,255,255,.6)", alignSelf: "center", marginLeft: 8 }}>← the timeline, on your original media</div>
+      <div style={{ position: "absolute", left: 200, top: 880, display: "flex", gap: 22 }}>
+        {["PREMIERE PRO", "FINAL CUT PRO", "DAVINCI RESOLVE"].map((n, i) => {
+          const p = interpolate(frame, [36 + i * 3, 46 + i * 3], [0, 1], { ...clamp, easing: out });
+          return <div key={n} style={{ opacity: p, transform: `translateY(${(1 - p) * 40}px) scale(${0.9 + 0.1 * p})`, fontFamily: th.mono, fontWeight: 700, fontSize: 32, letterSpacing: "0.12em", color: "#fff", padding: "16px 24px", border: `3px solid ${i === 0 ? th.accent : "rgba(255,255,255,.4)"}`, borderRadius: 12 }}>{n}</div>;
+        })}
+        <div style={{ opacity: ship, fontFamily: th.mono, fontSize: 28, color: "rgba(255,255,255,.7)", alignSelf: "center", marginLeft: 6 }}>← an editable timeline</div>
       </div>
-    </AbsoluteFill>
+    </Whip>
   );
 };
 
+// The Boston opener, full screen, with its own song: the board locking BOSTON, then its impact.
 const Scratch: React.FC = () => {
+  const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const f = (s: number) => Math.round(s * fps);
+  const th = useTheme();
+  const layer = useLayer();
+  const lab = interpolate(frame, [4, 14, 70, 80], [0, 1, 1, 0], clamp);
+  const a = T.scratch2 - T.scratch;
   return (
     <AbsoluteFill>
-      <Seg a={0} b={2.6} name="map"><Shot src="footage/reveal_map.mp4" zoom={[1, 1.04]} /></Seg>
-      <Seg a={2.6} b={6} name="board"><Shot src="footage/reveal_board.mp4" from={1.6} zoom={[1, 1.05]} /></Seg>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,.72) 0%, rgba(0,0,0,0) 34%)" }} />
-      <Kicker n="03" mode="FROM SCRATCH" line="A 6-second clip, a song and a logo became this opener." />
-      <Seg a={0} b={0.2}><Flash frames={f(0.2)} peak={0.35} /></Seg>
+      <Seg a={0} b={a} name="opener: board"><Whip from="right"><Shot src="footage/reveal_a.mp4" zoom={[1, 1.03]} grade="none" volume={hears(layer, "voice") ? 1 : 0} /></Whip></Seg>
+      <Seg a={a} b={T.build - T.scratch} name="opener: impact"><Shot src="footage/reveal_b.mp4" zoom={[1.02, 1.06]} grade="none" volume={hears(layer, "voice") ? 1 : 0} /><Flash frames={5} peak={0.5} /></Seg>
+      <AbsoluteFill style={{ background: "linear-gradient(0deg, rgba(0,0,0,.85) 0%, rgba(0,0,0,.5) 22%, rgba(0,0,0,0) 36%)", opacity: lab }} />
+      <div style={{ position: "absolute", left: 110, bottom: 64, right: 110, opacity: lab, display: "flex", alignItems: "flex-end", gap: 40 }}>
+        <Label chip="MODE 03" text="FROM SCRATCH" size={32} />
+        <div>
+          <MaskLines lines={["A 6-second clip, a song and a logo became this."]} size={58} delay={6} font="serif" />
+          <div style={{ marginTop: 14, fontFamily: th.mono, fontSize: 24, color: "rgba(255,255,255,.8)", letterSpacing: "0.1em" }}>MUSIC EDIT · 20 STOCK SHOTS · MOTION GRAPHICS · ONE CONVERSATION</div>
+        </div>
+      </div>
+      <Sequence from={Math.round(a * fps)} durationInFrames={2} layout="none"><Flash frames={2} peak={0.6} /></Sequence>
     </AbsoluteFill>
   );
 };
@@ -119,13 +130,27 @@ const BoardLayer: React.FC = () => {
   const { fps } = useVideoConfig();
   const f = (s: number) => Math.round(s * fps);
   if (frame < f(T.build) || frame >= f(T.hit) + 1) return null;
-  // the other letters lock on quarter beats into the hit; the hero O locks on the hit itself
-  const locks = WORD.split("").map((_, i) => (i === 0 ? f(T.hit) : f(T.build + 0.5 + (i - 1) * 0.25)));
-  const plans = planFromLocks(WORD, locks, [f(T.build), f(T.build + 0.4)]);
-  const enter = interpolate(frame, [f(T.build), f(T.build) + 8], [0.85, 1], { ...clamp, easing: out });
+  const locks = WORD.split("").map((_, i) => (i === 0 ? f(T.hit) : f(T.build + 0.47 + (i - 1) * 0.2)));
+  const plans = planFromLocks(WORD, locks, [f(T.build), f(T.build + 0.35)]);
+  const enter = interpolate(frame, [f(T.build), f(T.build) + 6], [0.8, 1], { ...clamp, easing: out });
   return (
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
-      <div style={{ transform: `scale(${enter * 1.25})` }}><Board frame={frame} word={WORD} plans={plans} w={150} label="NOW PLAYING" sub="YOUR NEXT VIDEO" /></div>
+      <div style={{ transform: `scale(${enter * 1.3})` }}><Board frame={frame} word={WORD} plans={plans} w={150} label="NOW PLAYING" sub="YOUR NEXT VIDEO" /></div>
+    </AbsoluteFill>
+  );
+};
+
+const Title: React.FC = () => {
+  const { fps } = useVideoConfig();
+  const b = (n: number) => Math.round(n * (60 / 128) * fps);
+  return (
+    <AbsoluteFill>
+      <Plate />
+      <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+        <Slam text="Footage in." size={190} at={0} />
+        <Slam text="Film out." size={190} at={b(2)} color={ACCENT} />
+      </AbsoluteFill>
+      <Flash frames={4} peak={0.5} />
     </AbsoluteFill>
   );
 };
@@ -133,16 +158,16 @@ const BoardLayer: React.FC = () => {
 const Payoff: React.FC = () => {
   const th = useTheme();
   const frame = useCurrentFrame();
-  const sub = interpolate(frame, [18, 30], [0, 1], { ...clamp, easing: out });
+  const sub = interpolate(frame, [14, 26], [0, 1], { ...clamp, easing: out });
   return (
     <AbsoluteFill style={{ background: ACCENT }}>
       <Burst colors={["#FFFFFF", "#0A0A0D"]} />
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 40 }}>
-        <Slam text="oneshot-video" size={180} font="display" overshoot={1.12} />
+        <Slam text="oneshot-video" size={180} overshoot={1.12} />
         <div style={{ opacity: sub, transform: `translateY(${(1 - sub) * 20}px)`, textAlign: "center" }}>
-          <div style={{ fontFamily: th.serif, fontStyle: "italic", fontSize: 64, color: "#fff" }}>Your agent is now a video editor.</div>
-          <div style={{ marginTop: 26, fontFamily: th.mono, fontWeight: 600, fontSize: 30, letterSpacing: "0.16em", color: "rgba(255,255,255,.9)" }}>CLAUDE CODE · CODEX · CURSOR · LOCAL ON YOUR MAC</div>
-          <div style={{ marginTop: 18, fontFamily: th.mono, fontSize: 30, letterSpacing: "0.06em", color: "#0A0A0D" }}>github.com/kvrancic/oneshot-video</div>
+          <div style={{ fontFamily: th.serif, fontStyle: "italic", fontSize: 68, color: "#fff" }}>Your agent is now a video editor.</div>
+          <div style={{ marginTop: 26, fontFamily: th.mono, fontWeight: 600, fontSize: 30, letterSpacing: "0.16em", color: "rgba(255,255,255,.92)" }}>CLAUDE CODE · CODEX · CURSOR · LOCAL ON YOUR MAC</div>
+          <div style={{ marginTop: 18, fontFamily: th.mono, fontWeight: 700, fontSize: 34, letterSpacing: "0.05em", color: "#0A0A0D" }}>github.com/kvrancic/oneshot-video</div>
         </div>
       </AbsoluteFill>
       <Flash frames={5} peak={0.4} />
@@ -150,29 +175,33 @@ const Payoff: React.FC = () => {
   );
 };
 
-export const Main: React.FC<{ layer?: Layer }> = ({ layer = "full" }) => (
-  <Film layer={layer} theme={{ accent: ACCENT }}>
-    <Seg a={T.title} b={T.clips} name="Title">
-      <Plate />
-      <AbsoluteFill style={{ justifyContent: "center", paddingLeft: 140 }}>
-        <div style={{ marginBottom: 40 }}><Label chip="OPEN SOURCE" text="ONESHOT-VIDEO" at={6} size={36} /></div>
-        <MaskLines lines={["Your agent is", "now a video editor."]} size={150} delay={12} stagger={8} />
-      </AbsoluteFill>
-    </Seg>
-    <Seg a={T.clips} b={T.edit} name="Clips"><Clips /></Seg>
-    <Seg a={T.edit} b={T.scratch} name="Full edit"><Timeline /></Seg>
-    <Seg a={T.scratch} b={T.build} name="From scratch"><Scratch /></Seg>
-    <Seg a={T.build} b={T.hit} name="Build">
-      <BuildTo hit={T.hit - T.build} beats={BEATS.map((b) => b - T.build)} chargeFrom={0}><Plate /></BuildTo>
-    </Seg>
-    <BoardLayer />
-    <Seg a={T.hit} b={T.end} name="Payoff"><Payoff /></Seg>
-    <Seg a={T.end} b={T.total} name="Black"><AbsoluteFill style={{ background: "#000" }} /></Seg>
-    <Seg a={0} b={T.end} name="finish"><Finish grain={0.06} /></Seg>
-    <Music src="audio/groove.wav" volume={0.9} />
-    <Sfx at={T.clips - 0.15} src="whoosh-soft.wav" vol={0.35} />
-    <Sfx at={T.edit - 0.15} src="whoosh-soft.wav" vol={0.35} />
-    <Sfx at={T.scratch - 0.15} src="whoosh-long.wav" vol={0.35} />
-    {[0, 1, 2, 3, 4, 5].map((i) => <Sfx key={i} at={T.build + 0.5 + i * 0.25} src="tick.wav" vol={0.5} />)}
-  </Film>
-);
+// Music: under the clips it ducks so their voices come through; silent while the opener plays its song.
+const musicVolume = (fps: number) => (frame: number) => {
+  const t = frame / fps;
+  if (t >= T.scratch - 0.05 && t < T.build) return 0;
+  if ((t >= T.clips + 0.25 && t < T.edit) || t < T.title) return 0.28;
+  return 0.95;
+};
+
+export const Main: React.FC<{ layer?: Layer }> = ({ layer = "full" }) => {
+  const { fps } = useVideoConfig();
+  return (
+    <Film layer={layer} theme={{ accent: ACCENT }}>
+      <Seg a={T.cold} b={T.title} name="Cold open"><Vertical src="footage/cold.mp4" volume={1} /></Seg>
+      <Seg a={T.title} b={T.clips} name="Title"><Title /></Seg>
+      <Seg a={T.clips} b={T.clip2} name="Clip 1"><ClipScene src="clipA.mp4" n="01" chip="TEXT BEHIND" lines={["The word goes", "behind the", "speaker."]} side="right" whip="up" /></Seg>
+      <Seg a={T.clip2} b={T.clip3} name="Clip 2"><ClipScene src="clipB.mp4" n="01" chip="COUNT-UPS" lines={["Numbers land", "on the word", "she says."]} side="left" whip="right" /></Seg>
+      <Seg a={T.clip3} b={T.edit} name="Clip 3"><ClipScene src="clipC.mp4" n="01" chip="VIRTUAL CAMERA" lines={["16:9 in.", "9:16 out.", "It follows him."]} side="right" whip="left" /></Seg>
+      <Seg a={T.edit} b={T.scratch} name="Full edit"><Timeline /></Seg>
+      <Seg a={T.scratch} b={T.build} name="From scratch"><Scratch /></Seg>
+      <Seg a={T.build} b={T.hit} name="Build"><BuildTo hit={T.hit - T.build} beats={BEATS.map((b) => b - T.build)} chargeFrom={0}><Plate /></BuildTo></Seg>
+      <BoardLayer />
+      <Seg a={T.hit} b={T.end} name="Payoff"><Payoff /></Seg>
+      <Seg a={T.end} b={T.total} name="Black"><AbsoluteFill style={{ background: "#000" }} /></Seg>
+      <Seg a={0} b={T.end} name="finish"><Finish grain={0.05} vignette={0.35} /></Seg>
+      {hears(layer, "music") && <Audio src={staticFile("audio/groove128.wav")} volume={musicVolume(fps)} />}
+      {[T.clips, T.clip2, T.clip3, T.edit, T.scratch].map((t, i) => <Sfx key={i} at={t - 0.12} src="whoosh-soft.wav" vol={0.45} />)}
+      {[0, 1, 2, 3, 4, 5].map((i) => <Sfx key={`t${i}`} at={T.build + 0.47 + i * 0.2} src="tick.wav" vol={0.55} />)}
+    </Film>
+  );
+};
