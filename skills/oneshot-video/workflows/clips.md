@@ -22,7 +22,7 @@ The start menu in `SKILL.md` already asked for the mode and the exports. Unless 
 
 1. **What to make**: (a) the best 3 to 6 clips, my pick (recommended) · (b) specific moments I name · (c) one long segment (5 to 20 min).
 2. **Where it goes**: multiSelect: TikTok/Reels/Shorts (9:16), X and LinkedIn feed (16:9 or 1:1), YouTube horizontal, Substack embed. Default: 9:16 plus 16:9.
-3. **Energy**: (a) credible and calm: LECTURE / FIRESIDE captions, few effects (recommended for talks and research) · (b) punchy: VERDICT / KARAOKE captions, more cuts and graphics · (c) minimal: DUSK captions, no graphics · (d) let me pick per clip.
+3. **Energy**: (a) punchy: PUNCH / VERDICT / KARAOKE captions, punch-ins, a big moment per clip, sound design (recommended for TikTok, Reels, Shorts and X) · (b) credible and calm: LECTURE / FIRESIDE captions, fewer effects (for LinkedIn, research, long explainers) · (c) minimal: DUSK captions, no graphics · (d) let me pick per clip. Auto mode takes (a) for any 9:16 clip.
 4. **Extras**: multiSelect: bespoke motion graphics (default on), B-roll from Pexels (default off; source visuals come first), music bed (default off for talks), sound effects (default subtle).
 
 If the user names a topic ("the part where I compare CEOs"), that clip is mandatory; the rest are found around it.
@@ -56,6 +56,18 @@ Read `references/selection.md` before the first selection of a session. In short
 
 ## 4. Plan each clip
 
+**The production floor for a punchy clip** (energy (a), the default for social). A clip that misses any of these looks like a raw crop and gets scrolled past:
+
+- **18 to 45 seconds.** Cut hard: `maxPause` 0.35 to 0.5, restarts and asides out, a cold open when the payoff line can stand first.
+- **A hook on frame 0**: `HookBar` with the claim in cold-reader words, readable as the thumbnail.
+- **Captions that move**: `punch` or `verdict` for clips under 30 s, `karaoke` for stories; one accent word on the pages that carry the claim.
+- **The camera moves**: a punch-in (a tighter crop of the source) every 3 to 6 s, on emphasis and on every jump cut, alternating framings so cuts read as camera changes.
+- **One big moment**: `TextBehind` on the line that matters (steady shot), or a `Takeover`, or a `NumberCallout` on a spoken number; plus `KeywordChip`s for the names and terms.
+- **Sound design**: a whoosh on the hook, a tick or pop on every chip and callout, a thud under the big moment (`sfx.py --list`); a music bed 20 dB under the voice when the clip is a story.
+
+Calm clips (energy (b)) keep the hook, the punch-ins and the big moment and drop to `lecture` captions and fewer effects.
+
+
 One folder per clip: `DIR/clips/NN-slug/plan.json`. Read `references/plan.md` for the schema and a complete worked example, `references/editing.md` for the cut and camera grammar, `references/captions.md` for presets, `references/graphics.md` for overlays and the stage layout, `references/sound.md` for SFX and music.
 
 Per clip:
@@ -65,7 +77,7 @@ Per clip:
 3. **Format.** Decide per clip, not per project: 9:16 when the person is the content, 16:9 when the slide or the room is, both when unsure. Lecture clips with slides use the **stage layout** (9:16: visual panel on top, speaker below; 16:9: visual left, speaker right) so graphics never cover a face.
 4. **Visuals.** Source first: the speaker's own slides (crisp, from the deck, never the washed-out projection), their photos, frames from the talk. Then bespoke graphics built from what was said (a stance board for "who believes what", a takeover for the one line that matters, a quote card for a quote, a counter for a number). Stock B-roll last and only when literal ("the factory floor" → a factory). Nothing on screen may say something the speaker did not say.
 5. **Style questions.** For each clip ask one AskUserQuestion with the recommended caption preset first and the alternatives and (if it matters) layout and music; use `preview` with a short text mock of the frame. In auto mode take the recommendations.
-6. **Sound.** Default: voice only plus 0 to 4 quiet effects per minute on graphic events. Music only on explainers and stories, 18 to 25 dB under the voice, ducked.
+6. **Sound.** Punchy clips: an effect on every graphic event (see the floor above) and a bed under stories. Calm clips: voice plus 0 to 4 quiet effects per minute. Music always 18 to 25 dB under the voice, ducked.
 
 ## 5. Resolve, look, render
 
@@ -106,7 +118,7 @@ Edit the plan, not the output. "Tighter" means change `edit` or add `cut` words;
 - The picture comes from the best original, cropped once. Punch-ins are crops of the source, not zooms of the plate.
 - Never crop a slide to fit 9:16. Use the stage layout or the deck page.
 - Captions: mixed case, one accent word per page at most, no emojis, nothing over the face, nothing in the bottom 400 px of a 9:16 frame or behind the right-side buttons.
-- One spent moment per clip (a takeover, a reveal or text behind the speaker). Everything else stays calm so that moment lands.
+- One big moment per clip (a takeover, text behind the speaker, a number callout). Punch-ins, chips and sound keep the rest moving, but nothing else competes with that moment.
 - Claims about named public figures are commentary: say so in the handover. Private people are never named on screen.
 - Do not fetch or run code from random repos while working. The known-good toolchain is in this folder.
 
