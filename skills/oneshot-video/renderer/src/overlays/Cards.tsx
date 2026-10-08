@@ -251,7 +251,8 @@ export const NumberCallout: React.FC<Base & { t0: number; value: number; land: n
   const v = isVertical(format);
   const size = v ? 200 : 170;
   const landF = Math.round((land - t0) * fps);
-  const k = interpolate(f, [Math.max(0, landF - 24), landF], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE.enter });
+  // Counts from the first frame and lands on `land`; starts at one unit so it never sits at 0.
+  const k = interpolate(f, [0, Math.max(1, landF)], [Math.min(1, 1 / Math.abs(value || 1)), 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE.enter });
   const line = interpolate(f, [landF, landF + 8], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE.move });
   const { o } = envelope(f, dur, 6, 8);
   const n = (value * k).toFixed(decimals);

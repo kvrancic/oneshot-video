@@ -12,8 +12,8 @@ export const TextBehind: React.FC<{
 }> = ({ format, palette, dur, text, fg, y, size, accent, serif, faceY }) => {
   const f = useCurrentFrame();
   const v = isVertical(format);
-  // Fit the word to the frame width (with margins), capped so short words do not explode.
-  const fitted = fitText({ text, withinWidth: v ? 1000 : 1720, fontFamily: serif ? FONT.serif : FONT.sans,
+  // Fit the word to the frame width minus 60 px a side, capped so short words do not explode.
+  const fitted = fitText({ text, withinWidth: (v ? 1080 : 1920) - 2 * 60, fontFamily: serif ? FONT.serif : FONT.sans,
     fontWeight: serif ? 400 : 800, letterSpacing: serif ? "-0.01em" : "-0.05em", validateFontIsLoaded: false }).fontSize;
   const s = size ?? Math.min(fitted, v ? 380 : 420);
   // Centre the word on the face so the head and shoulders pass in front of it.
