@@ -28,8 +28,13 @@ export const SCENES: [number, number, string][] = [
 ];
 
 export const SHOTS: [number, number, string][] = [
+  [T.title, T.clips, "plate: title"],
   [T.clips, T.edit, "clips: Sandberg, UC Berkeley 2016 (CC BY 3.0)"],
-  [T.scratch, T.build, "Boston reveal excerpts"],
+  [T.edit, T.scratch, "plate: timeline"],
+  [T.scratch, T.scratch + 2.6, "Boston opener: map"],
+  [T.scratch + 2.6, T.build, "Boston opener: board"],
+  [T.build, T.hit, "plate: build"],
+  [T.hit, T.end, "payoff"],
 ];
 
 export const MARKERS: [number, string][] = [[T.hit, "hit"]];
