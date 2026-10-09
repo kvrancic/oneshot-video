@@ -12,9 +12,9 @@ Runs locally on your Mac. Hands the timeline back to Premiere Pro, Final Cut Pro
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-D97757)](#install)
 [![Agent Skills](https://img.shields.io/badge/Codex%20·%20Cursor%20·%20OpenCode%20·%20Gemini-skill-4B5563)](#install)
 
-<img src="docs/media/trailer.gif" width="720" alt="The oneshot-video trailer: clips, a full-edit timeline, a from-scratch opener, a split-flap board spelling ONESHOT">
+<img src="docs/media/trailer.gif" width="720" alt="The oneshot-video trailer in pixel art: three editor timelines fill up, a raw phone recording of a talk becomes a finished edit, a robot zaps the stumbles, vertical clips pop out, a Boston opener lands">
 
-<sub>This trailer was made by oneshot-video itself, in from-scratch mode, music included. <a href="docs/media/trailer-720p.mp4">Watch it with sound</a> · <a href="skills/oneshot-video/examples/trailer">its source</a></sub>
+<sub>Made by oneshot-video itself, from the author's own talk: a 24-minute phone recording from the back of a ballroom became the 15-minute edit, the clips and this trailer. <a href="docs/media/trailer-720p.mp4">Watch it with sound</a> · <a href="skills/oneshot-video/examples/trailer">its source</a></sub>
 
 </div>
 

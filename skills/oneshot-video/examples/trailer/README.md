@@ -1,9 +1,20 @@
 # The oneshot-video trailer
 
-The 34-second trailer at the top of the repo's README, made with from-scratch mode: the film's source as it was rendered.
+The 40-second trailer at the top of the repo's README, made with from-scratch mode on the author's own talk. This is the film's source as it was rendered.
 
-- `src/Main.tsx`, `src/timing.ts`: the film. Drop them into a project made with `scripts/film.sh DIR` (which supplies `index.ts`, `Root.tsx`, the kit, fonts and the sound kit).
-- `music.py`: the music, synthesized (a 128 BPM groove, E C G D, a roll into the drop at 5.6 s, silent while the opener plays its own song, a build into the hit at 30 s), so it carries no licence: `.venv/bin/python music.py DIR/public/audio/groove128.wav`.
-- Footage it expects in `public/footage/`: `cold.mp4` and `clipA-C.mp4` (3.9-second excerpts of 9:16 clips cut by clips mode from two CC BY talks, see the main README's credits) and `reveal_a.mp4`, `reveal_b.mp4` (excerpts of the Boston opener). Swap in your own.
+- `src/Main.tsx`, `src/timing.ts`: the film. Drop them into a project made with `scripts/film.sh DIR`, which supplies `index.ts`, `Root.tsx`, the kit and the sound kit.
+- `chip.py`: the music and the 8-bit effects, all synthesized, so they carry no licence. It makes a 128 BPM chiptune that ducks under the voice and goes silent under the Boston opener, plus blips, a coin, a zap, a stamp and a power-up: `.venv/bin/python chip.py DIR/public/audio/chip128.wav` (the effects go to `DIR/public/sfx`).
+- What it expects in `public/` is the author's material, so swap in your own:
+  - `footage/`: excerpts of the raw talk and of its edit, three 9:16 clips, and the Boston opener
+  - `audio/z_*.wav`: the stumbles the edit removed
+  - `sprites/`: pixel art from the talk's slides
+  - `fonts/`: Jersey 10 and Silkscreen, from Google Fonts (SIL OFL)
 
-Render: `scripts/master.sh DIR` (-14 LUFS, -2 dBTP). Editor layers: `scripts/film_layers.py DIR --fcpxml`.
+The story it tells:
+1. A hook: "who says AI video can't be edited in Premiere, Resolve or Final Cut?"
+2. The raw recording and the edit, on the same sentence.
+3. The stumbles zapped out.
+4. The long form, then the short form, then a film from scratch.
+5. A callback to the three editor timelines.
+
+Render it with `scripts/master.sh DIR` (-14 LUFS, -2 dBTP). For editor layers, run `scripts/film_layers.py DIR --fcpxml`.
