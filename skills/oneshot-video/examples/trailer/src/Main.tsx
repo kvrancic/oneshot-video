@@ -283,7 +283,7 @@ const LongShot: React.FC<{ i: number }> = ({ i }) => {
 
 // Short form: the long form folds into a phone; three clips, one at a time, full height, with their sound.
 const SHORTS = [
-  { src: "short1.mp4", tag: "WORDS BEHIND YOU" },
+  { src: "short1.mp4", tag: "BIG MOMENTS" },
   { src: "short2.mp4", tag: "TAKEOVERS" },
   { src: "short3.mp4", tag: "IT FOLLOWS THE SPEAKER" },
 ];
