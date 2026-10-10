@@ -14,7 +14,7 @@ Runs locally on your Mac. Hands the timeline back to Premiere Pro, Final Cut Pro
 
 <img src="docs/media/trailer.gif" width="720" alt="The oneshot-video trailer in pixel art: three editor timelines fill up, a raw phone recording of a talk becomes a finished edit, a robot zaps the stumbles, vertical clips pop out, a Boston opener lands">
 
-<sub>Made by oneshot-video itself, from the author's own talk: a 24-minute phone recording from the back of a ballroom became the 15-minute edit, the clips and this trailer. <a href="docs/media/trailer-720p.mp4">Watch it with sound</a> · <a href="skills/oneshot-video/examples/trailer">its source</a></sub>
+<sub>Made by oneshot-video itself, from the author's own talk: a 24-minute phone recording from the back of a ballroom became the 15-minute edit, the clips and this trailer. <a href="https://github.com/kvrancic/oneshot-video/releases/download/v1.0.0/trailer-720p.mp4">Watch it with sound</a> · <a href="skills/oneshot-video/examples/trailer">its source</a></sub>
 
 </div>
 
@@ -143,7 +143,7 @@ If you open a beta export in Final Cut or Resolve, please [tell us how it went](
 
 <div align="center">
 <img src="docs/media/reveal.gif" width="720" alt="A split-flap board spells BOSTON, then the payoff card lands on the beat">
-<br><sub>A 54-second conference opener, made in one conversation. <a href="docs/media/reveal-720p.mp4">Watch it with sound</a></sub>
+<br><sub>A 54-second conference opener, made in one conversation. <a href="https://github.com/kvrancic/oneshot-video/releases/download/v1.0.0/reveal-720p.mp4">Watch it with sound</a></sub>
 </div>
 
 This opener was the first real job for from-scratch mode. The brief: announce that next year's conference is in Boston, to be played live in a ballroom. The material: a 6-second phone clip of five students shouting at a statue, a licensed song and a logo.
