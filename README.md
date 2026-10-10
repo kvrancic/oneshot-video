@@ -159,6 +159,15 @@ What the agent did, in one conversation:
 
 Every lesson from that session is now a rule in [`workflows/from-scratch.md`](skills/oneshot-video/workflows/from-scratch.md): the unflagged AAC priming that made every hit 43 ms late, why an opener ends on its peak and not a fade, why a spinning board must never show the answer early. Every component is in the [kit](skills/oneshot-video/renderer/src/kit).
 
+### An 8-bit promo, made the same way
+
+<div align="center">
+<img src="docs/media/hydra-bridge.gif" width="720" alt="A pixel-art captain's log on a space station: a student asks the ship's computer about a venture studio, the captain orders the jump to Zagreb">
+<br><sub>A 45-second promo for <b>Hydra Venture Studio</b> in Zagreb, made in one Claude Code session that followed the from-scratch workflow. <a href="https://github.com/kvrancic/oneshot-video/releases/download/v1.0.0/hydra-bridge-720p.mp4">Watch it with sound</a></sub>
+</div>
+
+The brief was a recruiting video for a studio that pays students to build their own company. The agent wrote a 13-line skit on the bridge of the studio's space station, cast four original voices and an 8-bit score with ElevenLabs, and checked every take by transcribing it with the skill's local whisper.cpp model. For this one it drew every frame in its own pixel renderer (384 x 216, scaled 5x, an ordered-dithered palette taken from the studio's site), then mixed to -14 LUFS and cut a 16:9 and a 9:16 version.
+
 ## Requirements
 
 - macOS on Apple Silicon (hardware encoding and Apple Vision). Linux support is the most wanted contribution.
